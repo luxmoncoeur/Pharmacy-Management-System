@@ -9,9 +9,10 @@ const future = (days) => new Date(Date.now() + days * 86400000).toISOString().sl
 test('receiving stock creates a batch and a ledger entry', async () => {
   const pharmacist = await loginAs('pharmacist.main');
   const before = await sellableStock(1, 11);
-  const res = await pharmacist.post('/api/batches').send({ medicine_id: 11, supplier_id: 1, batch_no: 'TEST-RCV-1', expiry_date: future(400), cost_price: 12, quantity: 50 });
+  const res = await pharmacist.post('/api/batches').send({ medicine_id: 11, supplier: 'Sample Pharma Distributors', batch_no: 'TEST-RCV-1', expiry_date: future(400), cost_price: 12, quantity: 50 });
   assert.equal(res.status, 201);
   assert.equal(res.body.data.branch_id, 1, 'stock lands at the pharmacist\'s own branch');
+  assert.equal(res.body.data.supplier_name, 'Sample Pharma Distributors');
   assert.equal(await sellableStock(1, 11), before + 50);
   assert.equal(await ledgerMismatches(), 0);
 });
@@ -50,38 +51,62 @@ test('alerts list expired, near-expiry and low-stock items', async () => {
   assert.ok(res.body.data.expired.length > 0 && res.body.data.near_expiry.length > 0 && res.body.data.low_stock.length > 0);
 });
 
-test('transfer moves stock between branches and conserves units', async () => {
-  const north = await loginAs('manager.north');
+test('sending stock moves units to the other branch in one step, keeping expiry dates', async () => {
   const main = await loginAs('manager.main');
   const mainBefore = await sellableStock(1, 1);
   const northBefore = await sellableStock(2, 1);
 
-  const req = await north.post('/api/transfers').send({ from_branch_id: 1, to_branch_id: 2, items: [{ medicine_id: 1, quantity: 30 }] });
-  assert.equal(req.status, 201);
-  const id = req.body.data.transfer_id;
-
-  assert.equal((await north.post(`/api/transfers/${id}/dispatch`)).status, 403, 'only the sending branch dispatches');
-  assert.equal((await main.post(`/api/transfers/${id}/dispatch`)).status, 200);
+  const res = await main.post('/api/transfers').send({ to_branch_id: 2, items: [{ medicine_id: 1, quantity: 30 }], notes: 'Test' });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.data.from_branch_id, 1, 'a branch manager sends from their own branch');
   assert.equal(await sellableStock(1, 1), mainBefore - 30);
-  assert.equal(await sellableStock(2, 1), northBefore, 'units in transit belong to neither branch yet');
-
-  assert.equal((await north.post(`/api/transfers/${id}/receive`)).status, 200);
   assert.equal(await sellableStock(2, 1), northBefore + 30);
-  assert.equal((await north.post(`/api/transfers/${id}/receive`)).status, 409, 'cannot receive twice');
+
+  const lots = res.body.data.lots;
+  assert.ok(lots.length > 0);
+  for (const lot of lots) {
+    const [[src]] = await pool.query('SELECT batch_no, expiry_date, branch_id FROM tbl_batches WHERE batch_id = ?', [lot.from_batch_id]);
+    const [[dst]] = await pool.query('SELECT batch_no, expiry_date, branch_id FROM tbl_batches WHERE batch_id = ?', [lot.to_batch_id]);
+    assert.deepEqual([src.batch_no, src.expiry_date, src.branch_id], [dst.batch_no, dst.expiry_date, 1]);
+    assert.equal(dst.branch_id, 2);
+  }
+  // Stock history shows both sides, each pointing at the other branch.
+  const [moves] = await pool.query(
+    "SELECT type, ref_id FROM tbl_stock_movements WHERE ref_type = 'branch' AND batch_id IN (?, ?) ORDER BY movement_id DESC LIMIT 2",
+    [lots[0].from_batch_id, lots[0].to_batch_id],
+  );
+  assert.deepEqual(moves.map((m) => m.type).sort(), ['transfer_in', 'transfer_out']);
   assert.equal(await ledgerMismatches(), 0);
 });
 
-test('transfer dispatch fails when the source lacks stock', async () => {
-  const north = await loginAs('manager.north');
+test('sending stock fails (and moves nothing) when the branch lacks stock', async () => {
   const main = await loginAs('manager.main');
-  const req = await north.post('/api/transfers').send({ from_branch_id: 1, to_branch_id: 2, items: [{ medicine_id: 2, quantity: 99999 }] });
-  const res = await main.post(`/api/transfers/${req.body.data.transfer_id}/dispatch`);
+  const before = await sellableStock(1, 2);
+  const res = await main.post('/api/transfers').send({ to_branch_id: 2, items: [{ medicine_id: 2, quantity: 99999 }] });
   assert.equal(res.status, 409);
   assert.ok(res.body.errors['items.0']);
+  assert.equal(await sellableStock(1, 2), before);
 });
 
-test('admin alerts count shortages per branch, not combined stock', async () => {
-  const admin = await loginAs('admin');
+test('a branch manager cannot send stock from another branch', async () => {
+  const north = await loginAs('manager.north');
+  const res = await north.post('/api/transfers').send({ from_branch_id: 1, to_branch_id: 2, items: [{ medicine_id: 1, quantity: 1 }] });
+  assert.equal(res.status, 403);
+});
+
+test('a pharmacist can remove expired stock but not record a count correction', async () => {
+  const pharmacist = await loginAs('pharmacist.main');
+  const [[batch]] = await pool.query('SELECT batch_id, qty_on_hand FROM tbl_batches WHERE branch_id = 1 AND qty_on_hand > 0 AND expiry_date <= CURDATE() LIMIT 1');
+  const removed = await pharmacist.post(`/api/batches/${batch.batch_id}/adjust`).send({ type: 'write_off', qty_change: -batch.qty_on_hand, reason: 'Expired' });
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.data.qty_on_hand, 0);
+  const correction = await pharmacist.post(`/api/batches/${batch.batch_id}/adjust`).send({ type: 'adjust', qty_change: 5, reason: 'Found' });
+  assert.equal(correction.status, 403);
+  assert.equal(await ledgerMismatches(), 0);
+});
+
+test('owner alerts count shortages per branch, not combined stock', async () => {
+  const admin = await loginAs('manager');
   const all = await admin.get('/api/inventory/alerts');
   const north = await loginAs('manager.north');
   const northAlerts = await north.get('/api/inventory/alerts');

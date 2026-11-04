@@ -6,7 +6,8 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  /* Slightly larger than typical admin software: easier to read at a busy counter. */
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);

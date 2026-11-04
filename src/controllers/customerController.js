@@ -1,7 +1,6 @@
 import Customer from '../models/customerModel.js';
 import { ok, created, notFound } from '../utils/http.js';
 import { paginate, pageMeta } from '../utils/pagination.js';
-import { audit } from '../utils/audit.js';
 import { branchScope } from '../middleware/auth.js';
 
 const customerController = {
@@ -25,7 +24,6 @@ const customerController = {
 
   create: async (req, res) => {
     const id = await Customer.create(req.valid.body);
-    await audit(req, 'create', 'customer', id);
     created(res, await Customer.getById(id), 'Customer added.');
   },
 
@@ -33,7 +31,6 @@ const customerController = {
     const { id } = req.valid.params;
     if (!(await Customer.getById(id))) throw notFound('Customer');
     await Customer.update(id, req.valid.body);
-    await audit(req, 'update', 'customer', id);
     ok(res, await Customer.getById(id), 'Customer updated.');
   },
 
@@ -41,7 +38,6 @@ const customerController = {
     const { id } = req.valid.params;
     if (!(await Customer.getById(id))) throw notFound('Customer');
     await Customer.setActive(id, false);
-    await audit(req, 'deactivate', 'customer', id);
     ok(res, { customer_id: id }, 'Customer archived. Their purchase history is kept.');
   },
 };

@@ -121,6 +121,31 @@
   padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border); font-size: 0.875rem;
 }
 .alert-item:last-child { border-bottom: 0; }
+a.alert-item { color: inherit; text-decoration: none; }
+a.alert-item:hover { background: var(--surface-2); }
+
+/* Home: the most common jobs as big buttons. */
+.quick-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.quick-actions .btn { flex: 1 1 12rem; justify-content: flex-start; }
+
+/* Printable prescription record */
+.rx-record { display: grid; gap: var(--space-4); font-size: 0.9375rem; }
+.rx-record h4 { margin: 0 0 var(--space-1); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); }
+.rx-record p { margin: 0; }
+.rx-head { display: flex; justify-content: space-between; gap: var(--space-4); padding-bottom: var(--space-3); border-bottom: 2px solid var(--text); }
+.rx-head > div { display: grid; gap: 2px; }
+.rx-title { text-align: right; justify-items: end; }
+.rx-title span:first-child { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+.rx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); }
+.rx-table { width: 100%; border-collapse: collapse; }
+.rx-table th, .rx-table td { text-align: left; padding: var(--space-2); border-bottom: 1px solid var(--border); vertical-align: top; }
+.rx-table th { font-size: 0.75rem; color: var(--text-3); font-weight: 600; }
+.rx-table .num { text-align: right; }
+.rx-review { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--r-md); }
+.rx-sign { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-6); margin-top: var(--space-6); font-size: 0.8125rem; color: var(--text-2); }
+.rx-sign span { display: block; border-bottom: 1px solid var(--text); height: 2rem; margin-bottom: var(--space-1); }
+
+.print-only { display: none; }
 
 .list-row {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-5);
@@ -212,7 +237,14 @@
   .app { display: block; }
   dialog.dialog[open] { position: static; display: block; box-shadow: none; border: 0; width: auto; max-height: none; transform: none; }
   dialog.dialog::backdrop { display: none; }
-  body:has(dialog.receipt-dialog[open]) .main { display: none; }
+  body:has(dialog.receipt-dialog[open]) .main, body:has(dialog.rx-print-dialog[open]) .main { display: none; }
+  dialog.rx-print-dialog .dialog-header { display: none; }
+  .rx-record { color: #000; }
+  /* Reports print as a plain table with a heading. */
+  .print-only { display: block; }
+  .page-header, .tabs, .toolbar { display: none !important; }
+  .report-heading h2 { margin: 0; }
+  .report-heading p { margin: 0 0 0.5rem; }
   .receipt { width: 72mm; color: #000; }
   .panel { border: 0; }
 }

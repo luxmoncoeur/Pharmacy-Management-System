@@ -10,12 +10,15 @@ export async function loadSession() {
 
 export const role = () => session.user?.role;
 export const can = (...roles) => roles.includes(session.user?.role);
-export const isAdmin = () => role() === 'admin';
 export const hasBranch = () => Boolean(session.user?.branch_id);
+/** The owner is a manager with no branch: they see every branch and manage staff and branches. */
+export const isOwner = () => role() === 'manager' && !hasBranch();
+/** Selling needs a till, and a till belongs to a branch. */
+export const canSell = () => hasBranch();
 
 export const ROLES = {
-  ALL: ['admin', 'manager', 'pharmacist', 'cashier'],
-  MANAGEMENT: ['admin', 'manager'],
-  DISPENSING: ['admin', 'manager', 'pharmacist'],
-  SELLING: ['manager', 'pharmacist', 'cashier'],
+  ALL: ['manager', 'pharmacist', 'cashier'],
+  MANAGEMENT: ['manager'],
+  // People who handle stock: receive deliveries and remove expired or damaged stock.
+  DISPENSING: ['manager', 'pharmacist'],
 };

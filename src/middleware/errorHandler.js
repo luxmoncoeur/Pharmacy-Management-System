@@ -4,15 +4,10 @@ import { HttpError } from '../utils/http.js';
 const DUPLICATE_KEYS = {
   uq_branch_name: ['name', 'A branch with this name already exists.'],
   uq_username: ['username', 'This username is already taken.'],
-  uq_pharmacist_user: ['user_id', 'This user is already linked to a pharmacist.'],
-  uq_pharmacist_license: ['license_no', 'This license number is already registered.'],
-  uq_pharmacist_email: ['email', 'This email is already registered.'],
-  uq_customer_email: ['email', 'A customer with this email already exists.'],
-  uq_category_name: ['name', 'This category already exists.'],
-  uq_supplier_name: ['name', 'A supplier with this name already exists.'],
+  uq_user_license: ['license_no', 'This PRC license number is already registered to another account.'],
   uq_medicine_identity: ['generic_name', 'This medicine (same generic name, brand, strength and form) already exists.'],
   uq_medicine_barcode: ['barcode', 'Another medicine already uses this barcode.'],
-  uq_batch: ['batch_no', 'This batch number was already received for this medicine at this branch.'],
+  uq_batch: ['batch_no', 'This lot number was already received for this medicine at this branch.'],
   uq_rx_medicine: ['items', 'A medicine can only appear once per prescription.'],
 };
 

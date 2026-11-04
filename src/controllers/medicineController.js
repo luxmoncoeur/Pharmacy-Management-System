@@ -1,7 +1,6 @@
 import Medicine from '../models/medicineModel.js';
 import { ok, created, notFound } from '../utils/http.js';
 import { paginate, pageMeta } from '../utils/pagination.js';
-import { audit } from '../utils/audit.js';
 import { branchScope } from '../middleware/auth.js';
 
 const medicineController = {
@@ -26,18 +25,13 @@ const medicineController = {
 
   create: async (req, res) => {
     const id = await Medicine.create(req.valid.body);
-    await audit(req, 'create', 'medicine', id, { name: `${req.valid.body.generic_name} (${req.valid.body.brand})` });
     created(res, await Medicine.getById(id), 'Medicine added.');
   },
 
   update: async (req, res) => {
     const { id } = req.valid.params;
-    const before = await Medicine.getById(id);
-    if (!before) throw notFound('Medicine');
+    if (!(await Medicine.getById(id))) throw notFound('Medicine');
     await Medicine.update(id, req.valid.body);
-    const priceChanged = Number(before.price) !== req.valid.body.price;
-    await audit(req, priceChanged ? 'price_change' : 'update', 'medicine', id,
-      priceChanged ? { from: Number(before.price), to: req.valid.body.price } : null);
     ok(res, await Medicine.getById(id), 'Medicine updated.');
   },
 
@@ -45,7 +39,6 @@ const medicineController = {
     const { id } = req.valid.params;
     if (!(await Medicine.getById(id))) throw notFound('Medicine');
     await Medicine.setActive(id, false);
-    await audit(req, 'deactivate', 'medicine', id);
     ok(res, { medicine_id: id }, 'Medicine archived. It no longer appears at the POS.');
   },
 };

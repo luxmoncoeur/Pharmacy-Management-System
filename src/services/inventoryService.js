@@ -28,12 +28,12 @@ export async function allocateFefo(conn, branchId, medicineId, quantity) {
   return { parts, available };
 }
 
-/** Applies a signed quantity change to a batch and records it in the stock ledger. */
-export async function moveStock(conn, { batchId, branchId, userId, type, qtyChange, refType = null, refId = null, reason = null }) {
+/** Applies a signed quantity change to a lot and records it in the stock history. The lot knows its branch. */
+export async function moveStock(conn, { batchId, userId, type, qtyChange, refType = null, refId = null, reason = null }) {
   await conn.query('UPDATE tbl_batches SET qty_on_hand = qty_on_hand + ? WHERE batch_id = ?', [qtyChange, batchId]);
   await conn.query(
-    `INSERT INTO tbl_stock_movements (batch_id, branch_id, user_id, type, qty_change, ref_type, ref_id, reason)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [batchId, branchId, userId, type, qtyChange, refType, refId, reason],
+    `INSERT INTO tbl_stock_movements (batch_id, user_id, type, qty_change, ref_type, ref_id, reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [batchId, userId, type, qtyChange, refType, refId, reason],
   );
 }

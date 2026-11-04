@@ -45,10 +45,9 @@ export function expiryPill(expiryDate, days) {
 
 const PILLS = {
   in: ['ok', 'In stock'], low: ['warn', 'Low stock'], out: ['danger', 'Out of stock'],
-  pending: ['warn', 'Awaiting review'], verified: ['info', 'Ready to dispense'], partially_dispensed: ['info', 'Partly dispensed'],
-  dispensed: ['ok', 'Dispensed'], rejected: ['danger', 'Rejected'],
+  pending: ['warn', 'Needs checking'], verified: ['info', 'Ready to give out'], partially_dispensed: ['info', 'Partly given out'],
+  dispensed: ['ok', 'Given out'], rejected: ['danger', 'Rejected'],
   completed: ['ok', 'Completed'], voided: ['danger', 'Voided'],
-  requested: ['warn', 'Requested'], in_transit: ['info', 'In transit'], received: ['ok', 'Received'], cancelled: ['', 'Cancelled'],
   active: ['ok', 'Active'], inactive: ['', 'Inactive'],
 };
 
@@ -64,10 +63,12 @@ export const medicineSub = (m) => [m.brand, m.dosage_form].filter(Boolean).join(
 
 export const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
 
-export const ROLE_LABELS = { admin: 'Administrator', manager: 'Branch manager', pharmacist: 'Pharmacist', cashier: 'Cashier' };
+export const ROLE_LABELS = { manager: 'Manager', pharmacist: 'Pharmacist', cashier: 'Cashier' };
+/** "Owner" for a manager with no branch, otherwise the role name. */
+export const roleLabel = (u) => (u.role === 'manager' && !u.branch_id ? 'Owner' : ROLE_LABELS[u.role] ?? u.role);
 export const PAYMENT_LABELS = { cash: 'Cash', gcash: 'GCash', card: 'Card' };
 export const DISCOUNT_LABELS = { none: 'None', senior: 'Senior citizen', pwd: 'PWD' };
 export const MOVEMENT_LABELS = {
-  receive: 'Received', sale: 'Sold', adjust: 'Adjusted', transfer_out: 'Transferred out', transfer_in: 'Transferred in',
-  void_return: 'Returned (void)', write_off: 'Written off',
+  receive: 'Delivery received', sale: 'Sold', adjust: 'Count corrected', transfer_out: 'Sent to another branch', transfer_in: 'Received from another branch',
+  void_return: 'Returned (sale cancelled)', write_off: 'Removed (expired or damaged)',
 };

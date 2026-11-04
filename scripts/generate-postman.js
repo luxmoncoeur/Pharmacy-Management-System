@@ -11,28 +11,31 @@ const groups = {
   Medicines: [
     ['List (search, filter)', 'GET', 'medicines?q=para&rx=otc&stock=in&page=1&limit=25'],
     ['Get one', 'GET', 'medicines/1'],
-    ['Create', 'POST', 'medicines', { generic_name: 'Cetirizine', brand: 'Demo Brand', category_id: 3, dosage_form: 'Tablet', strength: '10 mg', unit: 'tablet', price: 18.5, requires_prescription: false, reorder_level: 20, barcode: '4809999999999' }],
-    ['Update', 'PUT', 'medicines/1', { generic_name: 'Paracetamol', brand: 'Biogesic', category_id: 1, dosage_form: 'Tablet', strength: '500 mg', unit: 'tablet', price: 5.75, requires_prescription: false, reorder_level: 100, barcode: '4800000000001' }],
+    ['Create', 'POST', 'medicines', { generic_name: 'Cetirizine', brand: 'Demo Brand', category: 'Antihistamines', dosage_form: 'Tablet', strength: '10 mg', unit: 'tablet', price: 18.5, requires_prescription: false, reorder_level: 20, barcode: '4809999999999' }],
+    ['Update', 'PUT', 'medicines/1', { generic_name: 'Paracetamol', brand: 'Biogesic', category: 'Analgesics', dosage_form: 'Tablet', strength: '500 mg', unit: 'tablet', price: 5.75, requires_prescription: false, reorder_level: 100, barcode: '4800000000001' }],
     ['Archive', 'DELETE', 'medicines/41'],
     ['Validation error (400)', 'POST', 'medicines', { generic_name: '', price: -1 }],
   ],
   Customers: [
     ['List', 'GET', 'customers?q=aquino'],
-    ['Create', 'POST', 'customers', { firstname: 'Juan', lastname: 'Dela Cruz', birthdate: '1950-05-01', phone: '09171234567', discount_id_type: 'senior', discount_id_no: 'SC-DEMO-1' }],
+    ['Create', 'POST', 'customers', { firstname: 'Juan', lastname: 'Dela Cruz', phone: '09171234567', discount_id_type: 'senior', discount_id_no: 'SC-DEMO-1' }],
     ['History', 'GET', 'customers/1/history'],
   ],
   Inventory: [
     ['Batches', 'GET', 'batches?in_stock=true&sort=expiry_date'],
-    ['Receive stock', 'POST', 'batches', { medicine_id: 1, supplier_id: 1, batch_no: 'DEMO-001', expiry_date: '2028-12-31', cost_price: 3.5, quantity: 100 }],
-    ['Adjust', 'POST', 'batches/1/adjust', { type: 'adjust', qty_change: -1, reason: 'Recount' }],
+    ['Receive stock', 'POST', 'batches', { medicine_id: 1, supplier: 'Sample Pharma Distributors', batch_no: 'DEMO-001', expiry_date: '2028-12-31', cost_price: 3.5, quantity: 100 }],
+    ['Remove expired stock', 'POST', 'batches/1/adjust', { type: 'write_off', qty_change: -1, reason: 'Expired' }],
+    ['Count correction (manager)', 'POST', 'batches/1/adjust', { type: 'adjust', qty_change: -1, reason: 'Shelf count is different' }],
     ['Alerts', 'GET', 'inventory/alerts'],
     ['Reorder suggestions', 'GET', 'inventory/reorder'],
-    ['Stock ledger', 'GET', 'inventory/movements?type=sale'],
+    ['Stock history for one medicine', 'GET', 'inventory/movements?medicine=1'],
   ],
   Prescriptions: [
     ['List ready to dispense', 'GET', 'prescriptions?status=dispensable'],
     ['Create', 'POST', 'prescriptions', { customer_id: 3, doctor_name: 'Dr. Demo', doctor_license_no: 'MD-DEMO-1', date_issued: '2026-11-01', items: [{ medicine_id: 6, quantity: 21, instructions: '1 capsule every 8 hours' }] }],
+    ['Save and verify in one step (sign in as pharmacist.main)', 'POST', 'prescriptions', { customer_id: 3, doctor_name: 'Dr. Demo', doctor_license_no: 'MD-DEMO-2', date_issued: '2026-11-01', verify: true, items: [{ medicine_id: 6, quantity: 21 }] }],
     ['Verify (sign in as pharmacist.main)', 'POST', 'prescriptions/20/verify'],
+    ['Printable record', 'GET', 'prescriptions/20'],
     ['Reject (sign in as pharmacist.main)', 'POST', 'prescriptions/21/reject', { reason: 'Unsigned prescription' }],
   ],
   Sales: [
@@ -44,16 +47,13 @@ const groups = {
     ['Void (manager)', 'POST', 'sales/1/void', { reason: 'Customer returned unopened item' }],
   ],
   Transfers: [
-    ['List', 'GET', 'transfers'],
-    ['Request', 'POST', 'transfers', { from_branch_id: 2, to_branch_id: 1, items: [{ medicine_id: 1, quantity: 20 }] }],
-    ['Dispatch seeded request (sender: manager.main)', 'POST', 'transfers/2/dispatch'],
-    ['Receive (sign in as manager.north)', 'POST', 'transfers/2/receive'],
+    ['Send stock to another branch (one step)', 'POST', 'transfers', { to_branch_id: 2, items: [{ medicine_id: 1, quantity: 20 }], notes: 'North Branch ran low' }],
   ],
   Reports: [
     ['Dashboard', 'GET', 'dashboard'],
-    ['Daily sales', 'GET', 'reports/daily-sales?from=2026-10-01&to=2026-11-30'],
-    ['Stock status CSV', 'GET', 'reports/stock-status?format=csv'],
-    ['Expiring within 90 days', 'GET', 'reports/expiring?days=90'],
+    ['Sales summary', 'GET', 'reports/daily-sales?from=2026-10-01&to=2026-11-30'],
+    ['Best-selling medicines', 'GET', 'reports/sales-by-medicine?from=2026-10-01&to=2026-11-30'],
+    ['Stock and expiry CSV', 'GET', 'reports/stock-status?format=csv'],
   ],
 };
 

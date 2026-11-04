@@ -1,6 +1,6 @@
 import {
-  z, requiredText, optionalText, optionalEmail, optionalPhone, isoDate, optionalDate, id, optionalId,
-  money, qty, bool, listQuery, activeFilter,
+  z, requiredText, optionalText, optionalPhone, isoDate, optionalDate, id, optionalId,
+  money, qty, bool, listQuery, activeFilter, phToday,
 } from './common.js';
 
 export const loginSchema = z.object({
@@ -26,41 +26,31 @@ export const branchSchema = z.object({
   is_active: bool.optional(),
 });
 
-const role = z.enum(['admin', 'manager', 'pharmacist', 'cashier'], { error: 'Choose a valid role.' });
+const role = z.enum(['manager', 'pharmacist', 'cashier'], { error: 'Choose a valid role.' });
 const userBase = {
   username: requiredText('Username', 50).regex(/^[a-z0-9._-]+$/i, 'Use letters, numbers, dots, dashes or underscores only.'),
   full_name: requiredText('Full name', 120),
   role,
   branch_id: optionalId('Branch'),
+  license_no: optionalText('PRC license number', 30),
+  license_expiry: optionalDate('License expiry'),
   is_active: bool.optional(),
 };
-const branchRequired = (u) => u.role === 'admin' || u.branch_id;
-const branchMsg = { message: 'Assign a branch for this role.', path: ['branch_id'] };
-export const userCreateSchema = z.object({ ...userBase, password: strongPassword }).refine(branchRequired, branchMsg);
-export const userUpdateSchema = z.object({ ...userBase, password: z.preprocess((v) => (v === '' ? undefined : v), strongPassword.optional()) })
-  .refine(branchRequired, branchMsg);
+// A manager with no branch is the owner. Pharmacists and cashiers always work at one branch.
+const userRules = (schema) => schema
+  .refine((u) => u.role === 'manager' || u.branch_id, { message: 'Choose the branch this person works at.', path: ['branch_id'] })
+  .refine((u) => u.role !== 'pharmacist' || u.license_no, { message: 'Enter the pharmacist\'s PRC license number.', path: ['license_no'] })
+  .refine((u) => u.role !== 'pharmacist' || u.license_expiry, { message: 'Enter the license expiry date.', path: ['license_expiry'] });
+export const userCreateSchema = userRules(z.object({ ...userBase, password: strongPassword }));
+export const userUpdateSchema = userRules(z.object({ ...userBase, password: z.preprocess((v) => (v === '' ? undefined : v), strongPassword.optional()) }));
 export const userListQuery = listQuery(['username', 'full_name', 'role', 'last_login_at'], {
   role: role.optional(), branch: id().optional(), status: activeFilter,
-});
-
-export const pharmacistSchema = z.object({
-  firstname: requiredText('First name', 60),
-  lastname: requiredText('Last name', 60),
-  email: optionalEmail,
-  phone: optionalPhone,
-  license_no: requiredText('License number', 30),
-  license_expiry: isoDate('License expiry'),
-  user_id: optionalId('Linked user'),
-  is_active: bool.optional(),
 });
 
 export const customerSchema = z.object({
   firstname: requiredText('First name', 60),
   lastname: requiredText('Last name', 60),
-  birthdate: optionalDate('Birthdate').refine((d) => !d || new Date(d) <= new Date(), 'Birthdate cannot be in the future.'),
   phone: optionalPhone,
-  email: optionalEmail,
-  address: optionalText('Address', 255),
   discount_id_type: z.enum(['none', 'senior', 'pwd']).default('none'),
   discount_id_no: optionalText('ID number', 40),
   is_active: bool.optional(),
@@ -71,21 +61,10 @@ export const customerListQuery = listQuery(['lastname', 'firstname', 'created_at
   status: activeFilter, discount: z.enum(['none', 'senior', 'pwd']).optional(),
 });
 
-export const categorySchema = z.object({ name: requiredText('Category name', 60) });
-
-export const supplierSchema = z.object({
-  name: requiredText('Supplier name', 120),
-  contact_person: optionalText('Contact person', 120),
-  phone: optionalPhone,
-  email: optionalEmail,
-  address: optionalText('Address', 255),
-  is_active: bool.optional(),
-});
-
 export const medicineSchema = z.object({
   generic_name: requiredText('Generic name', 120),
   brand: requiredText('Brand', 120),
-  category_id: id('Category'),
+  category: requiredText('Category', 60),
   dosage_form: requiredText('Dosage form', 40),
   strength: requiredText('Strength', 40),
   unit: requiredText('Unit', 20),
@@ -96,27 +75,28 @@ export const medicineSchema = z.object({
   is_active: bool.optional(),
 });
 export const medicineListQuery = listQuery(['generic_name', 'brand', 'price', 'stock_on_hand', 'nearest_expiry'], {
-  category: id().optional(),
+  category: z.string().trim().max(60).optional(),
   rx: z.enum(['rx', 'otc']).optional(),
-  stock: z.enum(['in', 'low', 'out']).optional(),
+  stock: z.enum(['in', 'low', 'out', 'expiring', 'expired']).optional(),
   status: activeFilter,
   branch: id().optional(),
 });
 
 export const batchReceiveSchema = z.object({
   medicine_id: id('Medicine'),
-  supplier_id: optionalId('Supplier'),
+  supplier: optionalText('Supplier', 120),
   branch_id: optionalId('Branch'),
-  batch_no: requiredText('Batch number', 40),
-  expiry_date: isoDate('Expiry date').refine((d) => d > new Date().toISOString().slice(0, 10), 'Expiry date must be in the future. Do not receive expired stock.'),
-  cost_price: money('Cost price'),
+  batch_no: requiredText('Lot number', 40),
+  expiry_date: isoDate('Expiry date').refine((d) => d > phToday(), 'Expiry date must be in the future. Do not receive expired stock.'),
+  // Optional: leave blank when the cost is not known. Used only for stock value and profit.
+  cost_price: z.preprocess((v) => (v === '' || v === null || v === undefined ? 0 : v), money('Cost price')),
   quantity: qty(),
 });
 export const batchUpdateSchema = z.object({
-  batch_no: requiredText('Batch number', 40),
+  batch_no: requiredText('Lot number', 40),
   expiry_date: isoDate('Expiry date'),
   cost_price: money('Cost price'),
-  supplier_id: optionalId('Supplier'),
+  supplier: optionalText('Supplier', 120),
 });
 export const adjustSchema = z.object({
   type: z.enum(['adjust', 'write_off'], { error: 'Choose an adjustment type.' }),
@@ -143,9 +123,11 @@ export const prescriptionSchema = z.object({
   customer_id: id('Customer'),
   doctor_name: requiredText('Prescriber name', 120),
   doctor_license_no: requiredText('Prescriber license number', 30),
-  date_issued: isoDate('Date issued').refine((d) => d <= new Date().toISOString().slice(0, 10), 'Date issued cannot be in the future.'),
+  date_issued: isoDate('Date written').refine((d) => d <= phToday(), 'The date written cannot be in the future.'),
   notes: optionalText('Notes', 500),
   branch_id: optionalId('Branch'),
+  // A pharmacist recording the prescription can verify it in the same step.
+  verify: bool.default(false),
   items: z.array(rxItem).min(1, 'Add at least one medicine.').max(20)
     .refine((items) => new Set(items.map((i) => i.medicine_id)).size === items.length, 'Each medicine can only be listed once.'),
 });
@@ -181,15 +163,11 @@ export const saleListQuery = listQuery(['created_at', 'total', 'receipt_no'], {
 });
 
 export const transferSchema = z.object({
-  from_branch_id: id('Source branch'),
-  to_branch_id: id('Destination branch'),
+  from_branch_id: optionalId('Sending branch'),
+  to_branch_id: id('Receiving branch'),
   notes: optionalText('Notes', 255),
   items: z.array(z.object({ medicine_id: id('Medicine'), quantity: qty() })).min(1, 'Add at least one medicine.').max(50)
     .refine((items) => new Set(items.map((i) => i.medicine_id)).size === items.length, 'Each medicine can only be listed once.'),
-}).refine((t) => t.from_branch_id !== t.to_branch_id, { message: 'Source and destination must be different branches.', path: ['to_branch_id'] });
-export const transferListQuery = listQuery(['created_at'], {
-  status: z.enum(['requested', 'in_transit', 'received', 'cancelled']).optional(),
-  branch: id().optional(),
 });
 
 export const reportQuery = z.object({
@@ -197,15 +175,6 @@ export const reportQuery = z.object({
   from: optionalDate('From'),
   to: optionalDate('To'),
   format: z.enum(['json', 'csv']).default('json'),
-  days: z.coerce.number().int().min(1).max(365).default(90),
-});
-
-export const auditListQuery = listQuery(['created_at'], {
-  user: id().optional(),
-  entity: z.string().trim().max(40).optional(),
-  action: z.string().trim().max(40).optional(),
-  from: optionalDate('From'),
-  to: optionalDate('To'),
 });
 
 export const branchOnlyQuery = z.object({ branch: id('Branch').optional() });

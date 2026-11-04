@@ -14,13 +14,15 @@ export function parseHash() {
 
 export const navigate = (hash) => { if (location.hash !== hash) location.hash = hash; else resolve(); };
 
-export async function resolve(fallback = 'dashboard') {
+export async function resolve(fallback = 'home') {
   const { name, id, query } = parseHash();
   const entry = routes.get(name);
   if (!entry) return navigate(`#/${fallback}`);
   if (entry.allowed && !entry.allowed()) return navigate(`#/${fallback}`);
 
   current?.cleanup?.();
+  // Dialogs belong to the page that opened them; leaving the page closes them.
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
   // A fresh element per page: listeners a view attached to its container are discarded with it,
   // so handlers from a previously visited page can never fire on this one.
   const container = document.createElement('div');

@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { html, render as draw, $ } from '../dom.js';
-import { ROLE_LABELS, dateTime } from '../format.js';
+import { roleLabel, date } from '../format.js';
 import { session } from '../session.js';
 import { handleForm } from '../ui/form.js';
 import { fields } from '../ui/fields.js';
@@ -20,11 +20,11 @@ export async function render(container) {
           <dl class="details">
             <dt>Name</dt><dd>${u.full_name}</dd>
             <dt>Username</dt><dd class="mono">${u.username}</dd>
-            <dt>Role</dt><dd>${ROLE_LABELS[u.role]}</dd>
+            <dt>Role</dt><dd>${roleLabel(u)}</dd>
             <dt>Branch</dt><dd>${u.branch_name ?? 'All branches'}</dd>
-            ${u.pharmacist_id ? html`<dt>Pharmacist record</dt><dd>Linked, can verify prescriptions</dd>` : ''}
+            ${u.license_no ? html`<dt>PRC license</dt><dd>${u.license_no} · expires ${date(u.license_expiry)}</dd>` : ''}
           </dl>
-          <p class="small subtle" style="margin-top:1rem">Ask an administrator to change your name, role or branch.</p>
+          <p class="small subtle" style="margin-top:1rem">Ask the owner to change your name, role, branch or license.</p>
         </div>
       </section>
       <section class="panel">

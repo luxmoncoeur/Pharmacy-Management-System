@@ -13,17 +13,14 @@ import { openReceipt } from './receipt.js';
 const defs = [
   { name: 'firstname', label: 'First name', required: true, attrs: { maxlength: 60 } },
   { name: 'lastname', label: 'Last name', required: true, attrs: { maxlength: 60 } },
-  { name: 'birthdate', label: 'Birthdate', type: 'date', attrs: { max: new Date().toISOString().slice(0, 10) } },
-  { name: 'phone', label: 'Mobile number', type: 'tel', attrs: { maxlength: 20 }, placeholder: '09XX XXX XXXX' },
-  { name: 'email', label: 'Email', type: 'email', attrs: { maxlength: 120 } },
-  { name: 'discount_id_type', label: 'Discount ID', type: 'select', options: [['none', 'None'], ['senior', 'Senior citizen'], ['pwd', 'PWD']] },
-  { name: 'discount_id_no', label: 'ID number', hint: 'Needed to apply the 20% Senior Citizen or PWD discount', attrs: { maxlength: 40 } },
-  { name: 'address', label: 'Address', type: 'textarea', span: true, attrs: { maxlength: 255, rows: 2 } },
+  { name: 'phone', label: 'Mobile number (optional)', type: 'tel', span: true, attrs: { maxlength: 20 }, placeholder: '09XX XXX XXXX' },
+  { name: 'discount_id_type', label: 'Senior Citizen or PWD?', type: 'select', options: [['none', 'No'], ['senior', 'Senior citizen'], ['pwd', 'PWD']] },
+  { name: 'discount_id_no', label: 'ID number', hint: 'Needed for the 20% discount', attrs: { maxlength: 40 } },
 ];
 
 export async function render(container, { id }) {
   draw(container, html`
-    ${pageHeader('Customers', 'Patient records, discount IDs, and purchase history.',
+    ${pageHeader('Customers', 'Patients and regular buyers. Save a Senior Citizen or PWD ID here once, and the discount is ready at Sell.',
       html`<button class="btn btn-primary" type="button" id="add-customer">${icon('user-plus')}Add customer</button>`)}
     <section class="panel" id="customer-list"></section>`);
 
@@ -32,14 +29,13 @@ export async function render(container, { id }) {
     caption: 'Customers',
     toolbar: html`
       <div class="input-icon grow">${icon('search')}<label class="sr-only" for="cust-q">Search customers</label>
-        <input class="input" id="cust-q" type="search" name="q" data-filter placeholder="Name, phone, email, or ID number"></div>
+        <input class="input" id="cust-q" type="search" name="q" data-filter placeholder="Name, phone, or ID number"></div>
       <label class="sr-only" for="cust-discount">Discount</label>
       <select class="select" id="cust-discount" name="discount" data-filter><option value="">Any discount</option><option value="senior">Senior citizen</option><option value="pwd">PWD</option><option value="none">No discount ID</option></select>
-      <label class="sr-only" for="cust-status">Status</label>
-      <select class="select" id="cust-status" name="status" data-filter><option value="active">Active</option><option value="inactive">Archived</option><option value="all">All</option></select>`,
+      <label class="check"><input type="checkbox" name="status" value="all" data-filter> Show archived</label>`,
     columns: [
-      { label: 'Name', sortKey: 'lastname', render: (c) => html`<span class="primary-cell">${c.lastname}, ${c.firstname}</span>${c.age !== null ? html`<span class="secondary-line">${c.age} years old</span>` : ''}` },
-      { label: 'Contact', render: (c) => html`${c.phone ?? html`<span class="subtle">No phone</span>`}${c.email ? html`<span class="secondary-line">${c.email}</span>` : ''}` },
+      { label: 'Name', sortKey: 'lastname', render: (c) => html`<span class="primary-cell">${c.lastname}, ${c.firstname}</span>` },
+      { label: 'Phone', render: (c) => c.phone ?? html`<span class="subtle">None</span>` },
       { label: 'Discount', render: (c) => (c.discount_id_type === 'none' ? html`<span class="subtle">None</span>` : html`<span class="pill pill-info no-dot">${DISCOUNT_LABELS[c.discount_id_type]}</span><span class="secondary-line mono">${c.discount_id_no}</span>`) },
       { label: 'Added', sortKey: 'created_at', render: (c) => date(c.created_at) },
       { label: 'Status', render: (c) => activePill(c.is_active) },
@@ -74,10 +70,7 @@ async function openCustomer(customerId, list) {
       size: 'wide',
       body: html`
         <dl class="details">
-          <dt>Age</dt><dd>${c.age ?? 'Not recorded'}${c.birthdate ? ` (born ${date(c.birthdate)})` : ''}</dd>
           <dt>Phone</dt><dd>${c.phone ?? 'Not recorded'}</dd>
-          <dt>Email</dt><dd>${c.email ?? 'Not recorded'}</dd>
-          <dt>Address</dt><dd>${c.address ?? 'Not recorded'}</dd>
           <dt>Discount ID</dt><dd>${c.discount_id_type === 'none' ? 'None' : `${DISCOUNT_LABELS[c.discount_id_type]} · ${c.discount_id_no}`}</dd>
         </dl>
         <section>
@@ -88,8 +81,8 @@ async function openCustomer(customerId, list) {
         </section>
         <section>
           <h3>Prescriptions</h3>
-          ${history.prescriptions.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>No.</th><th>Prescriber</th><th>Issued</th><th class="num">Items</th><th>Status</th></tr></thead>
-            <tbody>${history.prescriptions.map((p) => html`<tr><td>${can(...ROLES.DISPENSING) ? html`<a href="#/prescriptions/${p.prescription_id}">#${p.prescription_id}</a>` : `#${p.prescription_id}`}</td><td>${p.doctor_name}</td><td>${date(p.date_issued)}</td><td class="num">${p.item_count}</td><td>${statusPill(p.status)}</td></tr>`)}</tbody></table></div>`
+          ${history.prescriptions.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>No.</th><th>Doctor</th><th>Date written</th><th class="num">Medicines</th><th>Status</th></tr></thead>
+            <tbody>${history.prescriptions.map((p) => html`<tr><td><a href="#/prescriptions/${p.prescription_id}">#${p.prescription_id}</a></td><td>${p.doctor_name}</td><td>${date(p.date_issued)}</td><td class="num">${p.item_count}</td><td>${statusPill(p.status)}</td></tr>`)}</tbody></table></div>`
             : html`<p class="subtle small">No prescriptions on file.</p>`}
         </section>`,
       footer: html`
@@ -105,7 +98,7 @@ async function openCustomer(customerId, list) {
     dlg.el.querySelector('[data-archive]')?.addEventListener('click', async () => {
       const ok = await confirmDialog({
         title: `Archive ${c.full_name}?`,
-        message: 'They will no longer appear in customer search at the POS. Their sales and prescriptions are kept.',
+        message: 'They will no longer appear in customer search at Sell. Their sales and prescriptions are kept.',
         confirmLabel: 'Archive customer',
         danger: true,
         onConfirm: () => api.del(`/customers/${c.customer_id}`),

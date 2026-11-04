@@ -117,6 +117,34 @@ test('prescription workflow: record, verify, dispense partially, then fully', as
   assert.equal((await pharmacist.get(`/api/prescriptions/${rxId}`)).body.data.status, 'dispensed');
 
   assert.equal((await pharmacist.delete(`/api/prescriptions/${rxId}`)).status, 409, 'dispensed prescriptions are kept');
+
+  const record = (await pharmacist.get(`/api/prescriptions/${rxId}`)).body.data;
+  assert.equal(record.pharmacist_license_no, 'PRC-SAMPLE-0001', 'the printable record shows the verifying pharmacist\'s license');
+  assert.equal(record.sales.length, 2, 'the record lists both dispensing sales');
+});
+
+test('a cashier can record a prescription, but it waits for a pharmacist', async () => {
+  const cashier = await loginAs('cashier.main');
+  const body = {
+    customer_id: 4, doctor_name: 'Dr. Test', doctor_license_no: 'MD-T-2', date_issued: new Date().toISOString().slice(0, 10),
+    items: [{ medicine_id: 6, quantity: 5 }],
+  };
+  const rx = await cashier.post('/api/prescriptions').send(body);
+  assert.equal(rx.status, 201);
+  assert.equal(rx.body.data.status, 'pending');
+  const selfVerify = await cashier.post('/api/prescriptions').send({ ...body, verify: true });
+  assert.equal(selfVerify.status, 403, 'only a pharmacist can save and verify in one step');
+});
+
+test('a pharmacist can save and verify a prescription in one step', async () => {
+  const pharmacist = await loginAs('pharmacist.main');
+  const rx = await pharmacist.post('/api/prescriptions').send({
+    customer_id: 4, doctor_name: 'Dr. Test', doctor_license_no: 'MD-T-3', date_issued: new Date().toISOString().slice(0, 10),
+    items: [{ medicine_id: 6, quantity: 5 }], verify: true,
+  });
+  assert.equal(rx.status, 201);
+  assert.equal(rx.body.data.status, 'verified');
+  assert.equal(rx.body.data.pharmacist_name, 'Carlo Mendoza');
 });
 
 test('senior discount: VAT-exempt and 20% off', async () => {
@@ -156,8 +184,8 @@ test('void returns stock to the original batches; only managers can void', async
   assert.equal(await ledgerMismatches(), 0);
 });
 
-test('admin has no till and cannot ring up sales', async () => {
-  const admin = await loginAs('admin');
+test('the owner has no till and cannot ring up sales', async () => {
+  const admin = await loginAs('manager');
   const res = await admin.post('/api/sales').send({ payment_method: 'card', payment_ref: 'X', items: [{ medicine_id: 1, quantity: 1 }] });
   assert.equal(res.status, 403);
 });
@@ -166,13 +194,14 @@ test('dashboard and reports are computed from data', async () => {
   const manager = await loginAs('manager.main');
   const dash = await manager.get('/api/dashboard');
   assert.equal(dash.status, 200);
-  assert.equal(dash.body.data.daily.length, 14);
+  assert.ok(dash.body.data.prescriptions.pending >= 0);
+  assert.ok(Array.isArray(dash.body.data.license_alerts));
   const [[today]] = await pool.query("SELECT COALESCE(SUM(total), 0) AS t FROM tbl_sales WHERE branch_id = 1 AND status = 'completed' AND created_at >= CURDATE()");
   assert.equal(dash.body.data.today.revenue, Number(today.t));
 
   const csv = await manager.get('/api/reports/stock-status?format=csv');
   assert.equal(csv.status, 200);
   assert.match(csv.headers['content-type'], /text\/csv/);
-  assert.match(csv.text, /Generic name,Brand/);
+  assert.match(csv.text, /Medicine,Brand/);
   assert.equal((await manager.get('/api/reports/unknown')).status, 404);
 });

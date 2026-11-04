@@ -3,7 +3,8 @@ import { html } from '../dom.js';
 /**
  * Renders labelled form fields from a definition list. Each field gets an id, a label, an error slot,
  * and aria-describedby wiring so screen readers announce hints and errors.
- * def: { name, label, type, required, hint, span, options: [[value, label]], attrs: {min, max, step, maxlength, ...} }
+ * def: { name, label, type, required, hint, span, options: [[value, label]], suggestions: [text], attrs: {min, max, step, maxlength, ...} }
+ * `suggestions` turns a text input into free text with a dropdown of values already in use (a native datalist).
  */
 export function fields(defs, values = {}) {
   return defs.map((d) => {
@@ -28,7 +29,8 @@ export function fields(defs, values = {}) {
         <span class="error" id="${id}-error"></span>
       </div>`;
     } else {
-      control = html`<input class="input" type="${d.type ?? 'text'}" value="${v}" ${d.placeholder ? html`placeholder="${d.placeholder}"` : ''} ${common}>`;
+      control = html`<input class="input" type="${d.type ?? 'text'}" value="${v}" ${d.placeholder ? html`placeholder="${d.placeholder}"` : ''} ${d.suggestions ? html`list="${id}-list" autocomplete="off"` : ''} ${common}>
+        ${d.suggestions ? html`<datalist id="${id}-list">${d.suggestions.map((s) => html`<option value="${s}"></option>`)}</datalist>` : ''}`;
     }
     return html`<div class="field ${d.span ? 'span-2' : ''}">
       <label for="${id}">${d.label}${d.required ? html`<span class="req" aria-hidden="true">*</span>` : ''}</label>

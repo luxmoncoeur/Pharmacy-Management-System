@@ -1,6 +1,6 @@
 // Generates database/seed.sql: fictional sample data for demos and tests.
 // Dates are written relative to CURDATE()/NOW() so expiry alerts stay meaningful whenever the seed is loaded.
-// Stock levels are simulated (receive, FEFO sales, transfer, adjustment) so batch quantities always
+// Stock levels are simulated (receive, earliest-expiry-first sales, transfer, correction) so batch quantities always
 // reconcile with tbl_stock_movements.
 import { writeFileSync } from 'node:fs';
 import bcrypt from 'bcryptjs';
@@ -54,56 +54,38 @@ const branches = [
 
 const hash = bcrypt.hashSync(DEMO_PASSWORD, 10);
 const users = [
-  { user_id: 1, branch_id: null, username: 'admin', full_name: 'Alex Reyes', role: 'admin' },
+  { user_id: 1, branch_id: null, username: 'manager', full_name: 'Alex Reyes', role: 'manager' },
   { user_id: 2, branch_id: 1, username: 'manager.main', full_name: 'Bea Santos', role: 'manager' },
-  { user_id: 3, branch_id: 1, username: 'pharmacist.main', full_name: 'Carlo Mendoza', role: 'pharmacist' },
+  { user_id: 3, branch_id: 1, username: 'pharmacist.main', full_name: 'Carlo Mendoza', role: 'pharmacist', license_no: 'PRC-SAMPLE-0001', license_expiry: dayExpr(540) },
   { user_id: 4, branch_id: 1, username: 'cashier.main', full_name: 'Dana Cruz', role: 'cashier' },
   { user_id: 5, branch_id: 2, username: 'manager.north', full_name: 'Ellis Garcia', role: 'manager' },
-  { user_id: 6, branch_id: 2, username: 'pharmacist.north', full_name: 'Faye Villanueva', role: 'pharmacist' },
+  { user_id: 6, branch_id: 2, username: 'pharmacist.north', full_name: 'Faye Villanueva', role: 'pharmacist', license_no: 'PRC-SAMPLE-0002', license_expiry: dayExpr(24) },
   { user_id: 7, branch_id: 2, username: 'cashier.north', full_name: 'Gabe Ramos', role: 'cashier' },
-].map((u) => ({ ...u, password_hash: hash, is_active: 1 }));
-
-const pharmacists = [
-  { pharmacist_id: 1, user_id: 3, firstname: 'Carlo', lastname: 'Mendoza', email: 'carlo.mendoza@example.com', phone: '09170000003', license_no: 'PRC-SAMPLE-0001', license_expiry: dayExpr(540) },
-  { pharmacist_id: 2, user_id: 6, firstname: 'Faye', lastname: 'Villanueva', email: 'faye.villanueva@example.com', phone: '09170000006', license_no: 'PRC-SAMPLE-0002', license_expiry: dayExpr(400) },
-  { pharmacist_id: 3, user_id: null, firstname: 'Hana', lastname: 'Torres', email: 'hana.torres@example.com', phone: '09170000009', license_no: 'PRC-SAMPLE-0003', license_expiry: dayExpr(24) },
-];
+].map((u) => ({ license_no: null, license_expiry: null, ...u, password_hash: hash, is_active: 1 }));
 
 const customers = [
-  ['Isabel', 'Aquino', -72, 'senior', 'SC-SAMPLE-1001'],
-  ['Jose', 'Bautista', -68, 'senior', 'SC-SAMPLE-1002'],
-  ['Karen', 'Castillo', -34, 'none', null],
-  ['Leo', 'Dizon', -29, 'none', null],
-  ['Maria', 'Estrada', -45, 'pwd', 'PWD-SAMPLE-2001'],
-  ['Nico', 'Fernandez', -22, 'none', null],
-  ['Olivia', 'Gonzales', -81, 'senior', 'SC-SAMPLE-1003'],
-  ['Paolo', 'Hernandez', -39, 'none', null],
-  ['Rosa', 'Ignacio', -63, 'senior', 'SC-SAMPLE-1004'],
-  ['Sam', 'Jimenez', -27, 'none', null],
-  ['Tina', 'Lopez', -51, 'none', null],
-  ['Victor', 'Manalo', -58, 'none', null],
-  ['Wendy', 'Navarro', -31, 'none', null],
-  ['Xavier', 'Ocampo', -66, 'senior', 'SC-SAMPLE-1005'],
-  ['Yna', 'Pascual', -25, 'none', null],
-].map(([firstname, lastname, ageYears, type, idNo], i) => ({
+  ['Isabel', 'Aquino', 'senior', 'SC-SAMPLE-1001'],
+  ['Jose', 'Bautista', 'senior', 'SC-SAMPLE-1002'],
+  ['Karen', 'Castillo', 'none', null],
+  ['Leo', 'Dizon', 'none', null],
+  ['Maria', 'Estrada', 'pwd', 'PWD-SAMPLE-2001'],
+  ['Nico', 'Fernandez', 'none', null],
+  ['Olivia', 'Gonzales', 'senior', 'SC-SAMPLE-1003'],
+  ['Paolo', 'Hernandez', 'none', null],
+  ['Rosa', 'Ignacio', 'senior', 'SC-SAMPLE-1004'],
+  ['Sam', 'Jimenez', 'none', null],
+  ['Tina', 'Lopez', 'none', null],
+  ['Victor', 'Manalo', 'none', null],
+  ['Wendy', 'Navarro', 'none', null],
+  ['Xavier', 'Ocampo', 'senior', 'SC-SAMPLE-1005'],
+  ['Yna', 'Pascual', 'none', null],
+].map(([firstname, lastname, type, idNo], i) => ({
   customer_id: i + 1, firstname, lastname,
-  birthdate: raw(`DATE_SUB(CURDATE(), INTERVAL ${-ageYears * 365 + i * 17} DAY)`),
   phone: `0917100${String(i + 1).padStart(4, '0')}`,
-  email: `${firstname}.${lastname}@example.com`.toLowerCase(),
-  address: 'Sample address',
   discount_id_type: type, discount_id_no: idNo, is_active: 1,
 }));
 
-const categories = ['Analgesics', 'Antibiotics', 'Antihistamines', 'Antihypertensives', 'Antidiabetics',
-  'Cough and Cold', 'Gastrointestinal', 'Vitamins and Supplements', 'Cholesterol', 'Respiratory', 'First Aid']
-  .map((name, i) => ({ category_id: i + 1, name }));
-const cat = Object.fromEntries(categories.map((c) => [c.name, c.category_id]));
-
-const suppliers = [
-  { supplier_id: 1, name: 'Sample Pharma Distributors', contact_person: 'Iris Lim', phone: '0280000001', email: 'orders@sample-pharma.example.com', address: 'Sample address', is_active: 1 },
-  { supplier_id: 2, name: 'Demo Medical Supply Co.', contact_person: 'Jon Uy', phone: '0280000002', email: 'sales@demo-medical.example.com', address: 'Sample address', is_active: 1 },
-  { supplier_id: 3, name: 'Placeholder Health Trading', contact_person: 'Kim Sy', phone: '0280000003', email: 'hello@placeholder-health.example.com', address: 'Sample address', is_active: 1 },
-];
+const suppliers = ['Sample Pharma Distributors', 'Demo Medical Supply Co.', 'Placeholder Health Trading'];
 
 // [generic, brand, category, form, strength, unit, price, rx, reorder]
 const medicineRows = [
@@ -149,7 +131,7 @@ const medicineRows = [
   ['Mupirocin', 'Bactroban', 'First Aid', 'Ointment', '2%', 'tube', 310, 1, 5],
 ];
 const medicines = medicineRows.map(([generic_name, brand, c, dosage_form, strength, unit, price, rx, reorder], i) => ({
-  medicine_id: i + 1, generic_name, brand, category_id: cat[c], dosage_form, strength, unit, price,
+  medicine_id: i + 1, generic_name, brand, category: c, dosage_form, strength, unit, price,
   requires_prescription: rx, reorder_level: reorder, barcode: `48000000${String(i + 1).padStart(5, '0')}`, is_active: 1,
 }));
 const medById = Object.fromEntries(medicines.map((m) => [m.medicine_id, m]));
@@ -183,14 +165,14 @@ for (const branch of branches) {
       batchId += 1;
       const b = {
         batch_id: batchId, medicine_id: med.medicine_id, branch_id: branch.branch_id,
-        supplier_id: (med.medicine_id + idx) % 3 + 1,
+        supplier: suppliers[(med.medicine_id + idx) % 3],
         batch_no: `${branch.code}${String(med.medicine_id).padStart(3, '0')}-${String.fromCharCode(65 + idx)}${int(100, 999)}`,
         expiryOffset: p.expiry, cost_price: Math.round(med.price * 0.68 * 100) / 100,
-        qty_received: p.qty, qty_on_hand: p.qty,
+        qty_on_hand: p.qty,
       };
       batches.push(b);
       movements.push({
-        movement_id: ++movementId, batch_id: b.batch_id, branch_id: branch.branch_id, user_id: managerOf[branch.branch_id],
+        movement_id: ++movementId, batch_id: b.batch_id, user_id: managerOf[branch.branch_id],
         type: 'receive', qty_change: p.qty, ref_type: 'batch', ref_id: b.batch_id, reason: 'Initial stock (sample data)',
         created_at: momentExpr(RECEIVED_DAYS_AGO, 540),
       });
@@ -228,7 +210,7 @@ let saleItemId = 0;
 const rxMeds = medicines.filter((m) => m.requires_prescription).map((m) => m.medicine_id);
 const otcMeds = medicines.filter((m) => !m.requires_prescription).map((m) => m.medicine_id);
 const doctors = [['Dr. Lara Velasco', 'PRC-MD-SAMPLE-11'], ['Dr. Miguel Tan', 'PRC-MD-SAMPLE-12'], ['Dr. Nina Robles', 'PRC-MD-SAMPLE-13']];
-const staffOf = { 1: { cashier: 4, pharmacist: 3, pharmacistId: 1 }, 2: { cashier: 7, pharmacist: 6, pharmacistId: 2 } };
+const staffOf = { 1: { cashier: 4, pharmacist: 3 }, 2: { cashier: 7, pharmacist: 6 } };
 
 const recordSale = ({ branchId, daysAgo, minute, customer, rx, lines, cashierId }) => {
   saleId += 1;
@@ -250,14 +232,14 @@ const recordSale = ({ branchId, daysAgo, minute, customer, rx, lines, cashierId 
     sale_id: saleId, receipt_no: receiptNo(branchId, saleId), branch_id: branchId,
     cashier_id: cashierId, customer_id: customer?.customer_id ?? null, prescription_id: rx?.prescription_id ?? null,
     ...totals, discount_type: discountType, discount_id_no: discountType === 'none' ? null : customer.discount_id_no,
-    payment_method: method, amount_tendered: tendered, change_due: Math.round((tendered - totals.total) * 100) / 100,
+    payment_method: method, amount_tendered: tendered,
     payment_ref: method === 'cash' ? null : `REF${String(100000 + saleId)}`, status: 'completed', created_at: createdAt,
   });
   for (const { line, batch, take } of allocated) {
     batch.qty_on_hand -= take;
     const price = medById[line.medicine_id].price;
     saleItems.push({ sale_item_id: ++saleItemId, sale_id: saleId, medicine_id: line.medicine_id, batch_id: batch.batch_id, quantity: take, unit_price: price, line_total: lineTotal(price, take) });
-    movements.push({ movement_id: ++movementId, batch_id: batch.batch_id, branch_id: branchId, user_id: cashierId, type: 'sale', qty_change: -take, ref_type: 'sale', ref_id: saleId, reason: null, created_at: createdAt });
+    movements.push({ movement_id: ++movementId, batch_id: batch.batch_id, user_id: cashierId, type: 'sale', qty_change: -take, ref_type: 'sale', ref_id: saleId, reason: null, created_at: createdAt });
   }
   return { saleId, allocated };
 };
@@ -268,7 +250,7 @@ const newPrescription = ({ branchId, customer, daysAgo, status, items }) => {
   const reviewed = status !== 'pending';
   const rx = {
     prescription_id: ++rxId, customer_id: customer.customer_id, branch_id: branchId,
-    pharmacist_id: reviewed ? staff.pharmacistId : null, doctor_name: doctor, doctor_license_no: license,
+    reviewed_by: reviewed ? staff.pharmacist : null, doctor_name: doctor, doctor_license_no: license,
     date_issued: dayExpr(-daysAgo - int(0, 3)), notes: 'Sample prescription',
     status, rejection_reason: status === 'rejected' ? 'Prescription is unsigned. Ask the patient for a signed copy.' : null,
     reviewed_at: reviewed ? momentExpr(daysAgo, 600) : null, created_by: staff.pharmacist, created_at: momentExpr(daysAgo, 590),
@@ -323,33 +305,26 @@ newPrescription({ branchId: 1, customer: customers[7], daysAgo: 2, status: 'reje
 newPrescription({ branchId: 2, customer: customers[9], daysAgo: 0, status: 'pending', items: [{ medicine_id: 7, quantity: 14, instructions: '1 tablet every 12 hours' }] });
 newPrescription({ branchId: 2, customer: customers[13], daysAgo: 1, status: 'verified', items: [{ medicine_id: 16, quantity: 30, instructions: '1 tablet once daily' }] });
 
-// One completed transfer (Main to North) and one awaiting dispatch.
-const transfers = [];
-const transferItems = [];
+// Main Branch sent loratadine to North Branch: two lines in stock history, one per branch.
 {
   const daysAgo = 10;
   const medicineId = 12;
   const parts = allocate(1, medicineId, 40, daysAgo);
-  transfers.push({ transfer_id: 1, from_branch_id: 1, to_branch_id: 2, status: 'received', notes: 'North Branch ran low on loratadine', requested_by: 5, dispatched_by: 2, received_by: 5, dispatched_at: momentExpr(daysAgo, 600), received_at: momentExpr(daysAgo, 840), created_at: momentExpr(daysAgo + 1, 600) });
-  let t = 0;
   for (const { batch, take } of parts) {
     batch.qty_on_hand -= take;
     batchId += 1;
-    const dest = { ...batch, batch_id: batchId, branch_id: 2, batch_no: `${batch.batch_no}-T1`, qty_received: take, qty_on_hand: take };
+    const dest = { ...batch, batch_id: batchId, branch_id: 2, qty_on_hand: take };
     batches.push(dest);
-    transferItems.push({ transfer_item_id: ++t, transfer_id: 1, medicine_id: medicineId, quantity: take, batch_id: batch.batch_id, dest_batch_id: dest.batch_id });
-    movements.push({ movement_id: ++movementId, batch_id: batch.batch_id, branch_id: 1, user_id: 2, type: 'transfer_out', qty_change: -take, ref_type: 'transfer', ref_id: 1, reason: null, created_at: momentExpr(daysAgo, 600) });
-    movements.push({ movement_id: ++movementId, batch_id: dest.batch_id, branch_id: 2, user_id: 5, type: 'transfer_in', qty_change: take, ref_type: 'transfer', ref_id: 1, reason: null, created_at: momentExpr(daysAgo, 840) });
+    movements.push({ movement_id: ++movementId, batch_id: batch.batch_id, user_id: 2, type: 'transfer_out', qty_change: -take, ref_type: 'branch', ref_id: 2, reason: 'Sent to North Branch: ran low on loratadine', created_at: momentExpr(daysAgo, 600) });
+    movements.push({ movement_id: ++movementId, batch_id: dest.batch_id, user_id: 2, type: 'transfer_in', qty_change: take, ref_type: 'branch', ref_id: 1, reason: 'From Main Branch', created_at: momentExpr(daysAgo, 600) });
   }
-  transfers.push({ transfer_id: 2, from_branch_id: 1, to_branch_id: 2, status: 'requested', notes: 'Restock request for losartan', requested_by: 5, dispatched_by: null, received_by: null, dispatched_at: null, received_at: null, created_at: momentExpr(0, 90) });
-  transferItems.push({ transfer_item_id: 3, transfer_id: 2, medicine_id: 15, quantity: 50, batch_id: null, dest_batch_id: null });
 }
 
 // A damaged-stock adjustment so the ledger shows more than receipts and sales.
 {
   const b = batches.find((x) => x.branch_id === 1 && x.medicine_id === 2 && x.qty_on_hand > 2);
   b.qty_on_hand -= 2;
-  movements.push({ movement_id: ++movementId, batch_id: b.batch_id, branch_id: 1, user_id: 2, type: 'adjust', qty_change: -2, ref_type: 'batch', ref_id: b.batch_id, reason: 'Damaged: bottles cracked in storage', created_at: momentExpr(5, 610) });
+  movements.push({ movement_id: ++movementId, batch_id: b.batch_id, user_id: 2, type: 'adjust', qty_change: -2, ref_type: 'batch', ref_id: b.batch_id, reason: 'Damaged: bottles cracked in storage', created_at: momentExpr(5, 610) });
 }
 
 out.push('-- Sample data for the Pharmacy Management System. Generated by scripts/generate-seed.js; do not edit by hand.');
@@ -357,19 +332,14 @@ out.push(`-- All people, companies, addresses and license numbers are fictional.
 out.push('SET FOREIGN_KEY_CHECKS = 0;\n');
 insert('tbl_branches', branches.map(({ code, ...b }) => ({ ...b, is_active: 1 })));
 insert('tbl_users', users);
-insert('tbl_pharmacists', pharmacists.map((p) => ({ ...p, is_active: 1 })));
 insert('tbl_customers', customers);
-insert('tbl_categories', categories);
-insert('tbl_suppliers', suppliers);
 insert('tbl_medicines', medicines);
-insert('tbl_batches', batches.map(({ expiryOffset, ...b }) => ({ ...b, expiry_date: dayExpr(expiryOffset), received_at: momentExpr(RECEIVED_DAYS_AGO, 540), created_at: momentExpr(RECEIVED_DAYS_AGO, 540) })));
+insert('tbl_batches', batches.map(({ expiryOffset, ...b }) => ({ ...b, expiry_date: dayExpr(expiryOffset), received_at: momentExpr(RECEIVED_DAYS_AGO, 540) })));
 insert('tbl_prescription', prescriptions);
 insert('tbl_prescribed_items', prescribedItems);
 insert('tbl_sales', sales);
 insert('tbl_sale_items', saleItems);
 insert('tbl_stock_movements', movements);
-insert('tbl_transfers', transfers);
-insert('tbl_transfer_items', transferItems);
 out.push('SET FOREIGN_KEY_CHECKS = 1;');
 
 writeFileSync(new URL('../database/seed.sql', import.meta.url), out.join('\n'));

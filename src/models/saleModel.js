@@ -8,7 +8,7 @@ const FROM = `
   LEFT JOIN tbl_customers c ON c.customer_id = s.customer_id
   LEFT JOIN tbl_users v ON v.user_id = s.voided_by`;
 
-const COLUMNS = `s.*, br.name AS branch_name, br.address AS branch_address, br.phone AS branch_phone, u.full_name AS cashier_name,
+const COLUMNS = `s.*, s.amount_tendered - s.total AS change_due, br.name AS branch_name, br.address AS branch_address, br.phone AS branch_phone, u.full_name AS cashier_name,
   CONCAT(c.firstname, ' ', c.lastname) AS customer_name, v.full_name AS voided_by_name,
   (SELECT SUM(si.quantity) FROM tbl_sale_items si WHERE si.sale_id = s.sale_id) AS item_count`;
 

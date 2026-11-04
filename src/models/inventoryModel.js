@@ -3,15 +3,14 @@ import { where, like, orderBy, SELLABLE } from '../utils/sql.js';
 import { NEAR_EXPIRY_DAYS } from '../config/pricing.js';
 
 const BATCH_SELECT = `
-  SELECT b.*, m.generic_name, m.brand, m.strength, m.dosage_form, m.unit, br.name AS branch_name, s.name AS supplier_name,
+  SELECT b.*, m.generic_name, m.brand, m.strength, m.dosage_form, m.unit, br.name AS branch_name, b.supplier AS supplier_name,
          DATEDIFF(b.expiry_date, CURDATE()) AS days_to_expiry,
          CASE WHEN NOT (${SELLABLE}) THEN 'expired'
               WHEN b.expiry_date <= DATE_ADD(CURDATE(), INTERVAL ${NEAR_EXPIRY_DAYS} DAY) THEN 'near'
               ELSE 'ok' END AS expiry_status
     FROM tbl_batches b
     JOIN tbl_medicines m ON m.medicine_id = b.medicine_id
-    JOIN tbl_branches br ON br.branch_id = b.branch_id
-    LEFT JOIN tbl_suppliers s ON s.supplier_id = b.supplier_id`;
+    JOIN tbl_branches br ON br.branch_id = b.branch_id`;
 
 const Inventory = {
   listBatches: async ({ q, medicine, expiry, in_stock, sort, dir, limit, offset }, branchId) => {
@@ -34,8 +33,8 @@ const Inventory = {
   getBatch: async (id) => (await query(`${BATCH_SELECT} WHERE b.batch_id = ?`, [id]))[0],
 
   updateBatch: (id, b) => query(
-    'UPDATE tbl_batches SET batch_no = ?, expiry_date = ?, cost_price = ?, supplier_id = ? WHERE batch_id = ?',
-    [b.batch_no, b.expiry_date, b.cost_price, b.supplier_id ?? null, id],
+    'UPDATE tbl_batches SET batch_no = ?, expiry_date = ?, cost_price = ?, supplier = ? WHERE batch_id = ?',
+    [b.batch_no, b.expiry_date, b.cost_price, b.supplier ?? null, id],
   ),
 
   alerts: async (branchId) => {
@@ -70,8 +69,8 @@ const Inventory = {
                 COALESCE((SELECT SUM(si.quantity) FROM tbl_sale_items si JOIN tbl_sales s ON s.sale_id = si.sale_id
                            WHERE si.medicine_id = m.medicine_id AND s.status = 'completed'
                              AND s.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND (? IS NULL OR s.branch_id = ?)), 0) AS sold_30d,
-                (SELECT sp.name FROM tbl_batches b JOIN tbl_suppliers sp ON sp.supplier_id = b.supplier_id
-                  WHERE b.medicine_id = m.medicine_id ORDER BY b.received_at DESC LIMIT 1) AS last_supplier
+                (SELECT b.supplier FROM tbl_batches b
+                  WHERE b.medicine_id = m.medicine_id AND b.supplier IS NOT NULL ORDER BY b.received_at DESC LIMIT 1) AS last_supplier
            FROM tbl_medicines m WHERE m.is_active = 1
        ) t
       WHERE t.stock_on_hand <= t.reorder_level
@@ -81,7 +80,7 @@ const Inventory = {
 
   movements: async ({ medicine, batch, type, from, to, limit, offset }, branchId) => {
     const w = where()
-      .if(branchId, 'mv.branch_id = ?', branchId)
+      .if(branchId, 'b.branch_id = ?', branchId)
       .if(batch, 'mv.batch_id = ?', batch)
       .if(medicine, 'b.medicine_id = ?', medicine)
       .if(type, 'mv.type = ?', type)
@@ -91,7 +90,7 @@ const Inventory = {
       JOIN tbl_batches b ON b.batch_id = mv.batch_id
       JOIN tbl_medicines m ON m.medicine_id = b.medicine_id
       JOIN tbl_users u ON u.user_id = mv.user_id
-      JOIN tbl_branches br ON br.branch_id = mv.branch_id`;
+      JOIN tbl_branches br ON br.branch_id = b.branch_id`;
     const rows = await query(
       `SELECT mv.*, b.batch_no, m.generic_name, m.brand, m.strength, u.full_name AS user_name, br.name AS branch_name
        ${from_} ${w.sql} ORDER BY mv.created_at DESC, mv.movement_id DESC LIMIT ? OFFSET ?`,

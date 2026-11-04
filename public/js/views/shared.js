@@ -2,7 +2,7 @@ import { api } from '../api.js';
 import { html } from '../dom.js';
 import { icon } from '../icons.js';
 import { money, medicineName, medicineSub, expiryPill, num } from '../format.js';
-import { session } from '../session.js';
+import { isOwner } from '../session.js';
 
 export const pageHeader = (title, description, actions = '') => html`
   <div class="page-header">
@@ -19,9 +19,9 @@ export async function branches() {
   return branchCache;
 }
 
-/** Admins can look at one branch or all; everyone else is fixed to their own branch, so no control is shown. */
+/** The owner can look at one branch or all; everyone else is fixed to their own branch, so no control is shown. */
 export async function branchFilter(name = 'branch', { allLabel = 'All branches' } = {}) {
-  if (session.user.role !== 'admin') return '';
+  if (!isOwner()) return '';
   const list = await branches();
   return html`<label class="sr-only" for="filter-${name}">Branch</label>
     <select class="select" id="filter-${name}" name="${name}" data-filter>

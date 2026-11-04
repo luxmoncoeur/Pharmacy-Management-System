@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import User from '../models/userModel.js';
 import { HttpError, ok, badRequest } from '../utils/http.js';
-import { audit } from '../utils/audit.js';
 
 // Compared against when the username does not exist, so response time does not reveal valid usernames.
 const DUMMY_HASH = bcrypt.hashSync('timing-equaliser', 10);
@@ -13,14 +12,12 @@ const authController = {
     const valid = await bcrypt.compare(password, user?.password_hash ?? DUMMY_HASH);
 
     if (!user || !valid || !user.is_active) {
-      await audit(req, 'login_failed', 'user', user?.user_id ?? null, { username });
-      throw new HttpError(401, user && valid ? 'This account has been deactivated. Contact your administrator.' : 'Incorrect username or password.');
+      throw new HttpError(401, user && valid ? 'This account has been deactivated. Ask the owner to reactivate it.' : 'Incorrect username or password.');
     }
 
     await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
     req.session.user = { user_id: user.user_id };
     await User.touchLogin(user.user_id);
-    await audit(req, 'login', 'user', user.user_id);
     ok(res, await User.getById(user.user_id), 'Signed in.');
   },
 
@@ -43,7 +40,6 @@ const authController = {
       throw badRequest('Choose a password you have not used here.', { new_password: 'New password must be different from the current one.' });
     }
     await User.setPassword(req.user.user_id, await bcrypt.hash(new_password, 10));
-    await audit(req, 'password_change', 'user', req.user.user_id);
     ok(res, null, 'Password updated.');
   },
 };

@@ -2,14 +2,16 @@ import { query } from '../config/db.js';
 import { where, like, orderBy, SELLABLE } from '../utils/sql.js';
 
 const SELECT = `
-  SELECT p.*, CONCAT(c.firstname, ' ', c.lastname) AS customer_name, c.discount_id_type AS customer_discount_type,
-         CONCAT(ph.firstname, ' ', ph.lastname) AS pharmacist_name, br.name AS branch_name, u.full_name AS created_by_name,
+  SELECT p.*, CONCAT(c.firstname, ' ', c.lastname) AS customer_name, c.phone AS customer_phone,
+         c.discount_id_type AS customer_discount_type,
+         rv.full_name AS pharmacist_name, rv.license_no AS pharmacist_license_no,
+         br.name AS branch_name, br.address AS branch_address, br.phone AS branch_phone, u.full_name AS created_by_name,
          (SELECT COUNT(*) FROM tbl_prescribed_items i WHERE i.prescription_id = p.prescription_id) AS item_count
     FROM tbl_prescription p
     JOIN tbl_customers c ON c.customer_id = p.customer_id
     JOIN tbl_branches br ON br.branch_id = p.branch_id
     JOIN tbl_users u ON u.user_id = p.created_by
-    LEFT JOIN tbl_pharmacists ph ON ph.pharmacist_id = p.pharmacist_id`;
+    LEFT JOIN tbl_users rv ON rv.user_id = p.reviewed_by`;
 
 const Prescription = {
   list: async ({ q, status, customer, sort, dir, limit, offset }, branchId) => {
@@ -38,6 +40,12 @@ const Prescription = {
          FROM tbl_prescribed_items i JOIN tbl_medicines m ON m.medicine_id = i.medicine_id
         WHERE i.prescription_id = ? ORDER BY i.item_id`,
       [rx.branch_id, id],
+    );
+    // The sales that dispensed this prescription, so the printed record shows what was given and when.
+    rx.sales = await query(
+      `SELECT s.sale_id, s.receipt_no, s.total, s.status, s.created_at, u.full_name AS cashier_name
+         FROM tbl_sales s JOIN tbl_users u ON u.user_id = s.cashier_id
+        WHERE s.prescription_id = ? ORDER BY s.created_at`, [id],
     );
     return rx;
   },

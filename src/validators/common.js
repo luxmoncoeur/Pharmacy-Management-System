@@ -46,5 +46,8 @@ export const listQuery = (sortable, extra = {}) => z.object({
   ...extra,
 });
 
+/** Today's date (YYYY-MM-DD) in Philippine time, so date checks match the counter's calendar, not UTC. */
+export const phToday = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+
 export const activeFilter = z.enum(['active', 'inactive', 'all']).default('active');
 export { z };

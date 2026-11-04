@@ -27,7 +27,7 @@ export function receiptHtml(s) {
       ${s.items.map((i) => html`<div class="r-item">
         <div class="r-line"><span>${i.generic_name} ${i.strength}${i.requires_prescription ? ' (Rx)' : ''}</span><span>${money(i.line_total)}</span></div>
         <div class="r-detail">${i.quantity} × ${money(i.unit_price)} · ${i.brand}</div>
-        <div class="r-detail">Batch ${i.batches}</div>
+        <div class="r-detail">Lot ${i.batches}</div>
       </div>`)}
     </div>
     <div class="r-section">
@@ -75,10 +75,10 @@ export async function openReceipt(saleOrId, { onVoid, footerExtra } = {}) {
   dlg.el.querySelector('[data-void]')?.addEventListener('click', async () => {
     const done = await confirmDialog({
       title: `Void ${sale.receipt_no}?`,
-      message: `This cancels the ${money(sale.total)} sale and puts every unit back into the batch it came from. The receipt stays on record, marked as voided.`,
-      confirmLabel: 'Void sale',
+      message: `This cancels the ${money(sale.total)} sale and puts every unit back on the shelf. The receipt stays on record, marked as voided.`,
+      confirmLabel: 'Void this sale',
       danger: true,
-      reasonLabel: 'Reason for voiding',
+      reasonLabel: 'Why is this sale being voided?',
       onConfirm: (reason) => api.post(`/sales/${sale.sale_id}/void`, { reason }),
     });
     if (done) {

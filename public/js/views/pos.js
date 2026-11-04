@@ -25,8 +25,8 @@ const reset = () => Object.assign(state, { cart: [], customer: null, prescriptio
 
 export async function render_(container, { query }) {
   if (!session.user.branch_id) {
-    render(container, html`<div class="panel state">${icon('building-2')}<h3>The POS needs a branch</h3>
-      <p>Sales are recorded against a branch till. Sign in with a branch account to sell.</p></div>`);
+    render(container, html`<div class="panel state">${icon('building-2')}<h3>Selling needs a branch</h3>
+      <p>Every sale belongs to a branch. Sign in with a branch account to sell.</p></div>`);
     return undefined;
   }
 
@@ -45,8 +45,8 @@ export async function render_(container, { query }) {
           </div>
           <div class="segmented" role="radiogroup" aria-label="Filter">
             <label><input type="radio" name="pos-rx" value="" checked><span>All</span></label>
-            <label><input type="radio" name="pos-rx" value="otc"><span>OTC</span></label>
-            <label><input type="radio" name="pos-rx" value="rx"><span>Rx</span></label>
+            <label><input type="radio" name="pos-rx" value="otc"><span>No prescription needed</span></label>
+            <label><input type="radio" name="pos-rx" value="rx"><span>Needs prescription (Rx)</span></label>
           </div>
         </div>
         <div class="pos-results" id="pos-results" role="listbox" aria-label="Search results"></div>
@@ -95,7 +95,7 @@ export async function render_(container, { query }) {
     render(resultsEl, state.results.map((m, i) => html`
       <button class="pos-item" type="button" role="option" data-i="${i}" ${m.stock_on_hand <= 0 ? 'disabled' : ''} aria-selected="false">
         <span>
-          <span class="name">${medicineName(m)} ${m.requires_prescription ? html`<span class="rx-tag" title="Prescription required">Rx</span>` : ''}</span>
+          <span class="name">${medicineName(m)} ${m.requires_prescription ? html`<span class="rx-tag" title="Needs a prescription">Rx</span>` : ''}</span>
           <span class="sub">${medicineSub(m)}</span>
         </span>
         ${expiryPill(m.nearest_expiry, m.days_to_expiry)}
@@ -201,9 +201,9 @@ export async function render_(container, { query }) {
         </div>`}
       ${rx ? html`<div class="selected-chip">
           <span class="truncate">${icon('clipboard-list', 'icon-sm')} Prescription <strong>#${rx.prescription_id}</strong> <span class="subtle small">· ${rx.doctor_name}</span></span>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-clear-rx aria-label="Unlink prescription">${icon('x', 'icon-sm')}</button>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-clear-rx aria-label="Remove prescription from this sale">${icon('x', 'icon-sm')}</button>
         </div>`
-      : html`<button class="btn btn-block" type="button" data-pick-rx>${icon('clipboard-list')}Dispense a verified prescription</button>`}
+      : html`<button class="btn btn-block" type="button" data-pick-rx>${icon('clipboard-list')}Give out a checked prescription</button>`}
       ${c && c.discount_id_type !== 'none' ? html`
         <div class="segmented segmented-block" role="radiogroup" aria-label="Discount">
           <label><input type="radio" name="discount" value="none" ${state.discount === 'none' ? 'checked' : ''}><span>No discount</span></label>
@@ -216,7 +216,7 @@ export async function render_(container, { query }) {
     const needsRx = (m) => m.requires_prescription && !rxCovers(m.medicine_id);
     render(cartLines, state.cart.length ? state.cart.map((l, i) => {
       const m = l.medicine;
-      const err = state.errors[i] ?? (needsRx(m) ? 'Prescription required. Link a verified prescription.' : rxLimit(m, l.quantity));
+      const err = state.errors[i] ?? (needsRx(m) ? 'Needs a prescription. Tap "Give out a checked prescription" above.' : rxLimit(m, l.quantity));
       return html`<div class="cart-line ${err ? 'invalid' : ''}">
         <div>
           <div class="name">${medicineName(m)} ${m.requires_prescription ? html`<span class="rx-tag">Rx</span>` : ''}</div>
@@ -234,7 +234,7 @@ export async function render_(container, { query }) {
         <button class="btn btn-ghost btn-icon btn-sm" type="button" data-remove="${i}" aria-label="Remove ${medicineName(m)}">${icon('trash-2', 'icon-sm')}</button>
         ${err ? html`<div class="line-error">${err}</div>` : ''}
       </div>`;
-    }) : html`<div class="state">${icon('shopping-cart')}<p>Search or scan to add items. Prescription medicines need a verified prescription.</p></div>`);
+    }) : html`<div class="state">${icon('shopping-cart')}<p>Type a medicine name or scan a barcode to add it. Medicines marked Rx need a prescription a pharmacist has checked.</p></div>`);
 
     const t = totals();
     render($('#cart-totals', container), html`
@@ -265,7 +265,7 @@ export async function render_(container, { query }) {
     try {
       const { data: rx } = await api.get(`/prescriptions/${id}`);
       if (!['verified', 'partially_dispensed'].includes(rx.status)) {
-        toast(rx.status === 'pending' ? 'This prescription still needs pharmacist verification.' : `Prescription #${rx.prescription_id} is ${rx.status.replace('_', ' ')}.`, { type: 'error' });
+        toast(rx.status === 'pending' ? 'A pharmacist still needs to check this prescription.' : `Prescription #${rx.prescription_id} is ${rx.status.replace('_', ' ')}.`, { type: 'error' });
         return;
       }
       const { data: customer } = await api.get(`/customers/${rx.customer_id}`);
@@ -280,7 +280,7 @@ export async function render_(container, { query }) {
         if (qty < item.remaining) short.push(`${medicineName(m)} (${num(m.stock_on_hand)} of ${item.remaining} available)`);
         if (qty > 0) state.cart.push({ medicine: m, quantity: qty });
       }
-      if (short.length) toast(`Not enough stock for: ${short.join(', ')}. Dispense what is available; the rest stays on the prescription.`, { type: 'info', duration: 8000 });
+      if (short.length) toast(`Not enough stock for: ${short.join(', ')}. Give out what is available; the rest stays on the prescription for later.`, { type: 'info', duration: 8000 });
       drawCart();
     } catch (err) {
       toastError(err);
@@ -289,8 +289,8 @@ export async function render_(container, { query }) {
 
   async function prescriptionPicker() {
     const dlg = openDialog({
-      title: 'Dispense a prescription',
-      description: 'Verified prescriptions at this branch with medicine still to dispense.',
+      title: 'Give out a prescription',
+      description: 'Prescriptions a pharmacist has checked, with medicine still to give out.',
       body: html`<div id="rx-picker"><div class="state"><span class="skeleton" style="width:60%"></span></div></div>`,
       footer: html`<button class="btn" type="button" data-close>Cancel</button>`,
     });
@@ -300,8 +300,8 @@ export async function render_(container, { query }) {
       const { data } = await api.get('/prescriptions', params);
       const box = dlg.el.querySelector('#rx-picker');
       if (!data.length) {
-        render(box, html`<div class="state">${icon('clipboard-list')}<h3>Nothing ready to dispense</h3>
-          <p>${state.customer ? `${state.customer.full_name} has no verified prescriptions.` : 'A pharmacist must verify a prescription before it appears here.'}</p></div>`);
+        render(box, html`<div class="state">${icon('clipboard-list')}<h3>Nothing ready to give out</h3>
+          <p>${state.customer ? `${state.customer.full_name} has no verified prescriptions.` : 'A prescription appears here after a pharmacist checks it on the Prescriptions page.'}</p></div>`);
         return;
       }
       render(box, html`<div class="panel">${data.map((rx) => html`
@@ -309,7 +309,7 @@ export async function render_(container, { query }) {
           <span><span class="name">#${rx.prescription_id} · ${rx.customer_name}</span>
             <span class="sub">${rx.doctor_name} · issued ${date(rx.date_issued)} · ${rx.item_count} item(s)</span></span>
           <span></span>
-          <span class="pill pill-info">${rx.status === 'verified' ? 'Ready' : 'Partly dispensed'}</span>
+          <span class="pill pill-info">${rx.status === 'verified' ? 'Ready' : 'Partly given out'}</span>
         </button>`)}</div>`);
       box.querySelector('[data-rx]')?.focus();
       on(box, 'click', '[data-rx]', (_e, btn) => { dlg.close(); loadPrescription(btn.dataset.rx); });
@@ -420,10 +420,9 @@ export async function render_(container, { query }) {
         ${fields([
           { name: 'firstname', label: 'First name', required: true, attrs: { maxlength: 60, autofocus: '' } },
           { name: 'lastname', label: 'Last name', required: true, attrs: { maxlength: 60 } },
-          { name: 'phone', label: 'Mobile number', type: 'tel', attrs: { maxlength: 20 } },
-          { name: 'birthdate', label: 'Birthdate', type: 'date', attrs: { max: new Date().toISOString().slice(0, 10) } },
-          { name: 'discount_id_type', label: 'Discount ID', type: 'select', options: [['none', 'None'], ['senior', 'Senior citizen'], ['pwd', 'PWD']] },
-          { name: 'discount_id_no', label: 'ID number', hint: 'Required for Senior Citizen or PWD discounts', attrs: { maxlength: 40 } },
+          { name: 'phone', label: 'Mobile number (optional)', type: 'tel', span: true, attrs: { maxlength: 20 } },
+          { name: 'discount_id_type', label: 'Senior Citizen or PWD?', type: 'select', options: [['none', 'No'], ['senior', 'Senior citizen'], ['pwd', 'PWD']] },
+          { name: 'discount_id_no', label: 'ID number', hint: 'Needed for the 20% discount', attrs: { maxlength: 40 } },
         ])}
       </form>`,
       footer: html`<button class="btn" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit" form="quick-customer">Save customer</button>`,

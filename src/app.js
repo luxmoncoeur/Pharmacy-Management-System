@@ -2,6 +2,8 @@ import express from 'express';
 import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
+import { openapi } from './docs/openapi.js';
 import { env } from './config/env.js';
 import { pool } from './config/db.js';
 import apiRoutes from './routes/index.js';
@@ -14,6 +16,21 @@ export function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 'loopback');
+
+  // Interactive API docs (Swagger UI). Mounted before the app's strict CSP because Swagger UI
+  // needs inline styles; its own scripts are still served from this origin only.
+  app.get('/api-docs/openapi.json', (_req, res) => res.json(openapi));
+  app.use('/api-docs', helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"], upgradeInsecureRequests: null,
+      },
+    },
+  }), swaggerUi.serve, swaggerUi.setup(openapi, {
+    customSiteTitle: 'Pharmacy Management System API',
+    swaggerOptions: { withCredentials: true, persistAuthorization: true, docExpansion: 'none', tryItOutEnabled: false },
+  }));
 
   app.use(helmet({
     contentSecurityPolicy: {

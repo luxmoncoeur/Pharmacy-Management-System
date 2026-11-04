@@ -11,7 +11,7 @@ test('rejects requests without a session (401)', async () => {
 });
 
 test('rejects a wrong password with a generic message', async () => {
-  const res = await anon().post('/api/auth/login').send({ username: 'admin', password: 'wrong-password' });
+  const res = await anon().post('/api/auth/login').send({ username: 'manager', password: 'wrong-password' });
   assert.equal(res.status, 401);
   assert.equal(res.body.message, 'Incorrect username or password.');
 });
@@ -44,7 +44,7 @@ test('a cashier cannot create medicines or view reports (403)', async () => {
   assert.equal(report.status, 403);
 });
 
-test('a manager only sees their own branch', async () => {
+test('a branch manager only sees their own branch', async () => {
   const manager = await loginAs('manager.main');
   const res = await manager.get('/api/sales?branch=2&limit=50');
   assert.equal(res.status, 200);
@@ -52,7 +52,7 @@ test('a manager only sees their own branch', async () => {
 });
 
 test('blocks cross-site POST requests by Origin', async () => {
-  const res = await anon().post('/api/auth/login').set('Origin', 'https://evil.example.com').send({ username: 'admin', password: 'x' });
+  const res = await anon().post('/api/auth/login').set('Origin', 'https://evil.example.com').send({ username: 'manager', password: 'x' });
   assert.equal(res.status, 403);
 });
 
@@ -66,12 +66,43 @@ test('rejects a weak new password and accepts a strong one', async () => {
   assert.equal(back.status, 200);
 });
 
+test('only the owner manages staff accounts and branches; a branch manager cannot', async () => {
+  const branchManager = await loginAs('manager.main');
+  const res = await branchManager.post('/api/users').send({ username: 'x.cashier', full_name: 'X', role: 'cashier', branch_id: 1, password: 'TempPass123' });
+  assert.equal(res.status, 403);
+  assert.equal((await branchManager.post('/api/branches').send({ name: 'X', address: 'Y' })).status, 403);
+});
+
+test('a pharmacist account needs a PRC license', async () => {
+  const owner = await loginAs('manager');
+  const base = { username: 'temp.pharm', full_name: 'Temp Pharmacist', role: 'pharmacist', branch_id: 1, password: 'TempPass123' };
+  const missing = await owner.post('/api/users').send(base);
+  assert.equal(missing.status, 400);
+  assert.ok(missing.body.errors.license_no);
+  const created = await owner.post('/api/users').send({ ...base, license_no: 'PRC-TEST-9', license_expiry: '2099-01-01' });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.data.license_no, 'PRC-TEST-9');
+});
+
 test('a deactivated user is signed out on the next request', async () => {
-  const admin = await loginAs('admin');
+  const admin = await loginAs('manager');
   const created = await admin.post('/api/users').send({ username: 'temp.cashier', full_name: 'Temp Cashier', role: 'cashier', branch_id: 1, password: 'TempPass123' });
   assert.equal(created.status, 201);
   const temp = await loginAs('temp.cashier', 'TempPass123');
   await admin.delete(`/api/users/${created.body.data.user_id}`);
   const res = await temp.get('/api/auth/me');
   assert.equal(res.status, 401);
+});
+
+test('Swagger UI is served and the OpenAPI spec documents every route', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = await anon().get('/api-docs/');
+  assert.equal(page.status, 200);
+  assert.match(page.text, /swagger-ui/);
+  const res = await anon().get('/api-docs/openapi.json');
+  assert.equal(res.status, 200);
+  const documented = Object.entries(res.body.paths).flatMap(([p, ops]) => Object.keys(ops).map((m) => `${m} ${p}`));
+  const routes = [...readFileSync(new URL('../src/routes/index.js', import.meta.url), 'utf8')
+    .matchAll(/router\.(get|post|put|patch|delete)\('([^']+)'/g)].map(([, m, p]) => `${m} ${p.replace(/:(\w+)/g, '{$1}')}`);
+  assert.deepEqual(routes.filter((r) => !documented.includes(r)), [], 'every route needs an entry in src/docs/openapi.js');
 });

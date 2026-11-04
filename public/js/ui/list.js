@@ -6,6 +6,8 @@ import { num } from '../format.js';
 /**
  * A server-backed table: toolbar filters, sortable headers, pagination, and loading / empty / error states.
  * Filters are any element in the toolbar with a [data-filter] attribute; its name is the query key.
+ * Radio buttons work too (only the checked one counts), so a row of chips can act as one filter.
+ * `columns` may be a function of the current filters, and `transform` may be async.
  */
 export function createList(mount, {
   endpoint, columns, toolbar = '', params = {}, limit = 25, onRowClick, rowKey, empty, caption, onLoad, transform,
@@ -22,11 +24,13 @@ export function createList(mount, {
 
   const readFilters = () => {
     mount.querySelectorAll('[data-filter]').forEach((el) => {
+      if (el.type === 'radio') { if (el.checked) state[el.name] = el.value; return; }
       state[el.name] = el.type === 'checkbox' ? (el.checked ? el.value || 'true' : '') : el.value.trim();
     });
   };
 
-  const head = () => html`<thead><tr>${columns.map((c) => {
+  const cols = () => (typeof columns === 'function' ? columns(state) : columns);
+  const head = () => html`<thead><tr>${cols().map((c) => {
     if (!c.sortKey) return html`<th scope="col" class="${c.num ? 'num' : ''}">${c.label}</th>`;
     const active = state.sort === c.sortKey;
     const ariaSort = active ? (state.dir === 'asc' ? 'ascending' : 'descending') : null;
@@ -35,7 +39,7 @@ export function createList(mount, {
   })}</tr></thead>`;
 
   const skeleton = () => html`<table class="table">${caption ? html`<caption class="sr-only">${caption}</caption>` : ''}${head()}<tbody>
-    ${Array.from({ length: 6 }, () => html`<tr class="skeleton-row">${columns.map(() => html`<td><span class="skeleton" style="width:${40 + Math.round(Math.random() * 45)}%"></span></td>`)}</tr>`)}
+    ${Array.from({ length: 6 }, () => html`<tr class="skeleton-row">${cols().map(() => html`<td><span class="skeleton" style="width:${40 + Math.round(Math.random() * 45)}%"></span></td>`)}</tr>`)}
   </tbody></table>`;
 
   async function load() {
@@ -47,7 +51,8 @@ export function createList(mount, {
       const query = Object.fromEntries(Object.entries(state).filter(([, v]) => v !== undefined && v !== ''));
       const res = await api.get(endpoint, query);
       if (id !== requestId) return;
-      const rows = transform ? transform(res.data) : res.data;
+      const rows = transform ? await transform(res.data, state) : res.data;
+      if (id !== requestId) return;
       onLoad?.(res);
       if (!rows.length) {
         const filtered = Object.entries(state).some(([k, v]) => !['page', 'limit', 'sort', 'dir', ...Object.keys(params)].includes(k) && v);
@@ -62,7 +67,7 @@ export function createList(mount, {
       }
       render(body, html`<table class="table">${caption ? html`<caption class="sr-only">${caption}</caption>` : ''}${head()}<tbody>
         ${rows.map((r) => html`<tr ${onRowClick ? html`data-href="${rowKey(r)}" tabindex="0"` : ''}>
-          ${columns.map((c) => html`<td class="${c.num ? 'num' : ''} ${c.className ?? ''}">${c.render ? c.render(r) : r[c.key] ?? ''}</td>`)}
+          ${cols().map((c) => html`<td class="${c.num ? 'num' : ''} ${c.className ?? ''}">${c.render ? c.render(r) : r[c.key] ?? ''}</td>`)}
         </tr>`)}
       </tbody></table>`);
       const meta = res.meta;

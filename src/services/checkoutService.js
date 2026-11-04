@@ -2,8 +2,8 @@ import { withTransaction } from '../config/db.js';
 import { allocateFefo, moveStock } from './inventoryService.js';
 import { computeTotals, lineTotal } from '../utils/pricing.js';
 import { receiptNo } from '../utils/receipt.js';
-import { audit } from '../utils/audit.js';
 import { badRequest, conflict, forbidden } from '../utils/http.js';
+import { isOwner } from '../middleware/auth.js';
 
 const fieldErrors = (list) => Object.fromEntries(list);
 
@@ -14,7 +14,7 @@ const fieldErrors = (list) => Object.fromEntries(list);
  */
 export async function checkout(req, input) {
   const branchId = req.user.branch_id;
-  if (!branchId) throw forbidden('Sales are recorded against a branch. Sign in with a branch account to use the POS.');
+  if (!branchId) throw forbidden('Sales are recorded against a branch. Sign in with a branch account to sell.');
 
   return withTransaction(async (conn) => {
     const ids = input.items.map((i) => i.medicine_id);
@@ -92,15 +92,14 @@ export async function checkout(req, input) {
         throw badRequest('Amount tendered is less than the total.', { amount_tendered: `Collect at least ${totals.total.toFixed(2)}.` });
       }
     }
-    const change = Math.round((tendered - totals.total) * 100) / 100;
 
     const [sale] = await conn.query(
       `INSERT INTO tbl_sales (receipt_no, branch_id, cashier_id, customer_id, prescription_id, subtotal, vatable_amount, vat_amount, vat_exempt,
-                              discount_type, discount_id_no, discount_amount, total, payment_method, amount_tendered, change_due, payment_ref)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              discount_type, discount_id_no, discount_amount, total, payment_method, amount_tendered, payment_ref)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [branchId, req.user.user_id, customerId, prescription?.prescription_id ?? null, totals.subtotal, totals.vatable_amount, totals.vat_amount,
         totals.vat_exempt, input.discount_type, input.discount_type === 'none' ? null : customer.discount_id_no, totals.discount_amount,
-        totals.total, input.payment_method, tendered, change, input.payment_method === 'cash' ? null : input.payment_ref],
+        totals.total, input.payment_method, tendered, input.payment_method === 'cash' ? null : input.payment_ref],
     );
     const saleId = sale.insertId;
     await conn.query('UPDATE tbl_sales SET receipt_no = ? WHERE sale_id = ?', [receiptNo(branchId, saleId), saleId]);
@@ -110,7 +109,7 @@ export async function checkout(req, input) {
         'INSERT INTO tbl_sale_items (sale_id, medicine_id, batch_id, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?, ?)',
         [saleId, line.medicine_id, line.batch_id, line.quantity, line.unit_price, lineTotal(line.unit_price, line.quantity)],
       );
-      await moveStock(conn, { batchId: line.batch_id, branchId, userId: req.user.user_id, type: 'sale', qtyChange: -line.quantity, refType: 'sale', refId: saleId });
+      await moveStock(conn, { batchId: line.batch_id, userId: req.user.user_id, type: 'sale', qtyChange: -line.quantity, refType: 'sale', refId: saleId });
     }
 
     if (prescription) {
@@ -122,8 +121,6 @@ export async function checkout(req, input) {
       }
       await refreshPrescriptionStatus(conn, prescription.prescription_id);
     }
-
-    await audit(req, 'sale', 'sale', saleId, { total: totals.total, items: lines.length }, conn);
     return saleId;
   });
 }
@@ -141,13 +138,13 @@ export async function voidSale(req, saleId, reason) {
   return withTransaction(async (conn) => {
     const [[sale]] = await conn.query('SELECT * FROM tbl_sales WHERE sale_id = ? FOR UPDATE', [saleId]);
     if (!sale) return null;
-    if (req.user.role !== 'admin' && sale.branch_id !== req.user.branch_id) throw forbidden('This sale belongs to another branch.');
+    if (!isOwner(req.user) && sale.branch_id !== req.user.branch_id) throw forbidden('This sale belongs to another branch.');
     if (sale.status === 'voided') throw conflict('This sale was already voided.');
 
     const [items] = await conn.query('SELECT * FROM tbl_sale_items WHERE sale_id = ?', [saleId]);
     for (const item of items) {
       await moveStock(conn, {
-        batchId: item.batch_id, branchId: sale.branch_id, userId: req.user.user_id, type: 'void_return', qtyChange: item.quantity, refType: 'sale', refId: saleId, reason,
+        batchId: item.batch_id, userId: req.user.user_id, type: 'void_return', qtyChange: item.quantity, refType: 'sale', refId: saleId, reason,
       });
     }
 
@@ -164,7 +161,6 @@ export async function voidSale(req, saleId, reason) {
     }
 
     await conn.query("UPDATE tbl_sales SET status = 'voided', voided_by = ?, void_reason = ?, voided_at = NOW() WHERE sale_id = ?", [req.user.user_id, reason, saleId]);
-    await audit(req, 'void', 'sale', saleId, { reason, total: Number(sale.total) }, conn);
     return saleId;
   });
 }

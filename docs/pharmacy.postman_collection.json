@@ -160,7 +160,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"generic_name\": \"Cetirizine\",\n  \"brand\": \"Demo Brand\",\n  \"category_id\": 3,\n  \"dosage_form\": \"Tablet\",\n  \"strength\": \"10 mg\",\n  \"unit\": \"tablet\",\n  \"price\": 18.5,\n  \"requires_prescription\": false,\n  \"reorder_level\": 20,\n  \"barcode\": \"4809999999999\"\n}",
+              "raw": "{\n  \"generic_name\": \"Cetirizine\",\n  \"brand\": \"Demo Brand\",\n  \"category\": \"Antihistamines\",\n  \"dosage_form\": \"Tablet\",\n  \"strength\": \"10 mg\",\n  \"unit\": \"tablet\",\n  \"price\": 18.5,\n  \"requires_prescription\": false,\n  \"reorder_level\": 20,\n  \"barcode\": \"4809999999999\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -191,7 +191,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"generic_name\": \"Paracetamol\",\n  \"brand\": \"Biogesic\",\n  \"category_id\": 1,\n  \"dosage_form\": \"Tablet\",\n  \"strength\": \"500 mg\",\n  \"unit\": \"tablet\",\n  \"price\": 5.75,\n  \"requires_prescription\": false,\n  \"reorder_level\": 100,\n  \"barcode\": \"4800000000001\"\n}",
+              "raw": "{\n  \"generic_name\": \"Paracetamol\",\n  \"brand\": \"Biogesic\",\n  \"category\": \"Analgesics\",\n  \"dosage_form\": \"Tablet\",\n  \"strength\": \"500 mg\",\n  \"unit\": \"tablet\",\n  \"price\": 5.75,\n  \"requires_prescription\": false,\n  \"reorder_level\": 100,\n  \"barcode\": \"4800000000001\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -295,7 +295,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstname\": \"Juan\",\n  \"lastname\": \"Dela Cruz\",\n  \"birthdate\": \"1950-05-01\",\n  \"phone\": \"09171234567\",\n  \"discount_id_type\": \"senior\",\n  \"discount_id_no\": \"SC-DEMO-1\"\n}",
+              "raw": "{\n  \"firstname\": \"Juan\",\n  \"lastname\": \"Dela Cruz\",\n  \"phone\": \"09171234567\",\n  \"discount_id_type\": \"senior\",\n  \"discount_id_no\": \"SC-DEMO-1\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -374,7 +374,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"medicine_id\": 1,\n  \"supplier_id\": 1,\n  \"batch_no\": \"DEMO-001\",\n  \"expiry_date\": \"2028-12-31\",\n  \"cost_price\": 3.5,\n  \"quantity\": 100\n}",
+              "raw": "{\n  \"medicine_id\": 1,\n  \"supplier\": \"Sample Pharma Distributors\",\n  \"batch_no\": \"DEMO-001\",\n  \"expiry_date\": \"2028-12-31\",\n  \"cost_price\": 3.5,\n  \"quantity\": 100\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -384,7 +384,7 @@
           }
         },
         {
-          "name": "Adjust",
+          "name": "Remove expired stock",
           "request": {
             "method": "POST",
             "header": [
@@ -406,7 +406,39 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"adjust\",\n  \"qty_change\": -1,\n  \"reason\": \"Recount\"\n}",
+              "raw": "{\n  \"type\": \"write_off\",\n  \"qty_change\": -1,\n  \"reason\": \"Expired\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Count correction (manager)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/batches/1/adjust",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "batches",
+                "1",
+                "adjust"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"adjust\",\n  \"qty_change\": -1,\n  \"reason\": \"Shelf count is different\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -450,12 +482,12 @@
           }
         },
         {
-          "name": "Stock ledger",
+          "name": "Stock history for one medicine",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/inventory/movements?type=sale",
+              "raw": "{{baseUrl}}/inventory/movements?medicine=1",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -465,8 +497,8 @@
               ],
               "query": [
                 {
-                  "key": "type",
-                  "value": "sale"
+                  "key": "medicine",
+                  "value": "1"
                 }
               ]
             }
@@ -530,6 +562,36 @@
           }
         },
         {
+          "name": "Save and verify in one step (sign in as pharmacist.main)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/prescriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "prescriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": 3,\n  \"doctor_name\": \"Dr. Demo\",\n  \"doctor_license_no\": \"MD-DEMO-2\",\n  \"date_issued\": \"2026-11-01\",\n  \"verify\": true,\n  \"items\": [\n    {\n      \"medicine_id\": 6,\n      \"quantity\": 21\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Verify (sign in as pharmacist.main)",
           "request": {
             "method": "POST",
@@ -543,6 +605,23 @@
                 "prescriptions",
                 "20",
                 "verify"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Printable record",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/prescriptions/20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "prescriptions",
+                "20"
               ]
             }
           }
@@ -755,23 +834,7 @@
       "name": "Transfers",
       "item": [
         {
-          "name": "List",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/transfers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "transfers"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Request",
+          "name": "Send stock to another branch (one step)",
           "request": {
             "method": "POST",
             "header": [
@@ -791,48 +854,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"from_branch_id\": 2,\n  \"to_branch_id\": 1,\n  \"items\": [\n    {\n      \"medicine_id\": 1,\n      \"quantity\": 20\n    }\n  ]\n}",
+              "raw": "{\n  \"to_branch_id\": 2,\n  \"items\": [\n    {\n      \"medicine_id\": 1,\n      \"quantity\": 20\n    }\n  ],\n  \"notes\": \"North Branch ran low\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            }
-          }
-        },
-        {
-          "name": "Dispatch seeded request (sender: manager.main)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/transfers/2/dispatch",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "transfers",
-                "2",
-                "dispatch"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Receive (sign in as manager.north)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/transfers/2/receive",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "transfers",
-                "2",
-                "receive"
-              ]
             }
           }
         }
@@ -858,7 +885,7 @@
           }
         },
         {
-          "name": "Daily sales",
+          "name": "Sales summary",
           "request": {
             "method": "GET",
             "header": [],
@@ -885,7 +912,34 @@
           }
         },
         {
-          "name": "Stock status CSV",
+          "name": "Best-selling medicines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sales-by-medicine?from=2026-10-01&to=2026-11-30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "sales-by-medicine"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-11-30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stock and expiry CSV",
           "request": {
             "method": "GET",
             "header": [],
@@ -902,29 +956,6 @@
                 {
                   "key": "format",
                   "value": "csv"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Expiring within 90 days",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/reports/expiring?days=90",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "reports",
-                "expiring"
-              ],
-              "query": [
-                {
-                  "key": "days",
-                  "value": "90"
                 }
               ]
             }

@@ -13,34 +13,43 @@ Pharmacies need accurate records of medicine stock, expiry dates, sales, and pre
 
 ## Users
 
-| Role                      | What they do                                                                                     |
-| ------------------------- | ------------------------------------------------------------------------------------------------ |
-| **Owner / Administrator** | Manages branches, staff accounts, the medicine catalog, and reports for all branches             |
-| **Branch Manager**        | Monitors inventory and sales, receives and adjusts stock, and handles transfers for their branch |
-| **Pharmacist**            | Reviews and verifies prescriptions, dispenses medicine, and receives stock                       |
-| **Cashier**               | Processes purchases, records payments, and prints receipts                                       |
+Three roles, each with only what they need.
+
+| Role | What they do |
+| --- | --- |
+| **Manager** | Runs a branch: medicines and prices, deliveries, sending stock to another branch, voiding sales, reports. A manager with **no branch** is the **owner**: they see every branch and also manage staff accounts and branches. |
+| **Pharmacist** | Sells, checks and verifies prescriptions, receives deliveries, and removes expired or damaged stock. Their PRC license is saved on their account. |
+| **Cashier** | Sells, gives out prescriptions a pharmacist has already checked, and adds customers. Can record a prescription, but a pharmacist must verify it. |
 
 ## Core functions
 
-1. **POS and sales processing with receipt generation**
-2. **Inventory management:** stock levels update in real time after every sale
-3. **Batch and expiry date tracking:** low-stock and near-expiry alerts
-4. **Prescription review and dispensing**
-5. **Sales and inventory reporting**
+1. **Selling with receipts**
+2. **Real-time stock:** stock goes down with every sale
+3. **Expiry tracking:** every delivery is saved with its lot number and expiry date, with warnings for expired, expiring and low stock
+4. **Prescription checking and giving out**
+5. **Sales and stock reports**
 
-## Features
+## What's on the screen
 
-- **Point of sale:** search or scan a barcode, then pay by cash, GCash, or card. A printable receipt includes the VAT breakdown.
-- **Automatic stock deduction:** every sale removes stock from the earliest-expiring batch first, and expired medicine cannot be sold.
-- **Expiry and stock alerts:** the dashboard flags expired items, items expiring within 90 days, and items at or below their reorder level.
-- **Prescriptions:** a prescription is recorded, verified by a pharmacist, then dispensed at the POS. Prescription-only (Rx) medicines need a verified prescription.
-- **Senior citizen and PWD discounts:** 20% off and VAT-exempt, with the customer's ID number recorded on the sale.
-- **Multi-branch:** each branch has its own stock and staff, and stock can be transferred between branches.
-- **Reports:** daily sales, sales by medicine, stock status, expiring stock, and branch summary, each downloadable as CSV.
-- **Dashboard:** today's sales, a 14-day sales chart, top sellers, and items that need attention.
-- **Role-based access:** each user only sees and does what their role allows.
-- **Records you can trust:** voided sales return stock to inventory, every stock change is logged, and an audit log records sensitive actions.
-- **Search and filters** on every list, **light and dark themes**, and a layout that works on desktop and tablet.
+The menu has 8 items (cashiers see 6):
+
+| Page | What it is for |
+| --- | --- |
+| **Home** | Big buttons for the common jobs (New sale, Record a prescription, Receive delivery, Look up a medicine), today's sales, and one **Needs attention** list: expired first, then expiring soon, then running low. |
+| **Sell** | Search or scan, pay by cash, GCash or card, print the receipt. Senior Citizen and PWD discounts (20% off, VAT-exempt). Medicines marked Rx need a checked prescription. |
+| **Sales** | Past sales. Reprint a receipt; managers can void a sale and the stock goes back on the shelf. |
+| **Prescriptions** | Three steps: record what the paper says, a pharmacist checks it, then give it out at Sell. A pharmacist can **Save and verify** in one step. Every prescription has a **printable record** (patient, doctor and PRC no., medicines, the pharmacist who verified it and their PRC no., and what was given out) to show the patient, a doctor, or an inspector. |
+| **Medicines & Stock** | One list with filter chips (Running low, Expiring soon, Expired, Out of stock). Open a medicine to see its stock by expiry date, receive a delivery, remove expired or damaged stock, send stock to another branch, and see its stock history. |
+| **Customers** | Name, phone, and Senior Citizen or PWD ID, plus their purchases and prescriptions. |
+| **Reports** | Sales summary, Best-selling medicines, and Stock and expiry. Each can be printed or downloaded for Excel. |
+| **Settings** | Staff accounts, and Branches for the owner. Categories and suppliers are simply typed in where they are used, with suggestions. |
+
+Behind the scenes, the safety rules are unchanged:
+- Sell always takes the stock that expires first, and expired stock can never be sold.
+- A failed sale saves nothing.
+- Every stock change is recorded with who did it and why, and voided sales keep who voided them and the reason.
+
+New staff can start with the [User guide](docs/USER_GUIDE.md).
 
 ## Tech stack
 
@@ -52,6 +61,7 @@ Pharmacies need accurate records of medicine stock, expiry dates, sales, and pre
 | API             | REST API with JSON                                                          |
 | Security        | Session login, `bcryptjs` password hashing, `helmet`, parameterized queries |
 | Validation      | `zod` on the server, plus browser-side checks                               |
+| API docs        | Swagger UI (`swagger-ui-express`) at `/api-docs`, from an OpenAPI 3 spec    |
 | Testing         | Node test runner, `supertest`, Postman                                      |
 | Version control | Git and GitHub                                                              |
 
@@ -61,13 +71,14 @@ Pharmacies need accurate records of medicine stock, expiry dates, sales, and pre
 Pharmacy-Management-System/
 ├── database/
 │   ├── pharmacy_pms.sql        # Complete database in one file (import in phpMyAdmin)
-│   ├── schema.sql              # Tables, primary/foreign keys, constraints
+│   ├── schema.sql              # The 10 tables, primary/foreign keys, constraints
 │   └── seed.sql                # Sample data (branches, users, medicines, sales)
 ├── docs/
 │   ├── API.md                  # Every endpoint, request body, and status code
 │   ├── ERD.md                  # Database design and entity-relationship diagram
 │   ├── TESTING.md              # Test results and demo checklist
-│   ├── DESIGN.md               # UI design decisions
+│   ├── DESIGN.md               # UI design decisions and why the system was simplified
+│   ├── USER_GUIDE.md           # Step-by-step guide for pharmacists, cashiers and managers
 │   └── pharmacy.postman_collection.json
 ├── public/                     # Frontend (served by Express)
 │   ├── index.html              # Main app page
@@ -77,9 +88,9 @@ Pharmacy-Management-System/
 │   └── js/
 │       ├── app.js              # Starts the app, sidebar, navigation by role
 │       ├── api.js              # Fetch wrapper for calling the REST API
-│       ├── router.js           # Page switching (#/dashboard, #/pos, ...)
+│       ├── router.js           # Page switching (#/home, #/pos, #/stock, ...)
 │       ├── ui/                 # Reusable parts: dialogs, tables, forms, toasts
-│       └── views/              # One file per page: pos, sales, medicines, inventory, ...
+│       └── views/              # One file per page: dashboard (Home), pos (Sell), stock, prescriptions, settings, ...
 ├── scripts/
 │   ├── db-setup.js             # Creates the database (npm run db:setup)
 │   ├── generate-seed.js        # Builds seed.sql
@@ -94,8 +105,9 @@ Pharmacy-Management-System/
 │   ├── validators/             # Input rules for every form
 │   ├── controllers/            # Handle each request and send the response
 │   ├── models/                 # SQL queries
-│   ├── services/               # Checkout, stock (FEFO), transfers, reports
-│   └── utils/                  # Shared helpers (responses, pricing, audit log)
+│   ├── services/               # Checkout, stock (earliest expiry first), sending stock, reports
+│   ├── docs/openapi.js         # OpenAPI spec shown by Swagger UI at /api-docs
+│   └── utils/                  # Shared helpers (responses, pricing, receipt numbers)
 ├── tests/                      # Automated API tests (npm test)
 ├── .env.example                # Copy to .env and set your MySQL details
 ├── package.json
@@ -159,22 +171,22 @@ Browser (fetch) → routes → middleware → controller → model / service →
 
 All accounts use the password **`Pharmacy123!`**. The sample data is fictional.
 
-| Username           | Role           | Branch       |
-| ------------------ | -------------- | ------------ |
-| `admin`            | Administrator  | All branches |
-| `manager.main`     | Branch Manager | Main Branch  |
-| `pharmacist.main`  | Pharmacist     | Main Branch  |
-| `cashier.main`     | Cashier        | Main Branch  |
-| `manager.north`    | Branch Manager | North Branch |
-| `pharmacist.north` | Pharmacist     | North Branch |
-| `cashier.north`    | Cashier        | North Branch |
+| Username           | Role                     | Branch       |
+| ------------------ | ------------------------ | ------------ |
+| `manager`          | Owner (manager, no branch) | All branches |
+| `manager.main`     | Manager                  | Main Branch  |
+| `pharmacist.main`  | Pharmacist               | Main Branch  |
+| `cashier.main`     | Cashier                  | Main Branch  |
+| `manager.north`    | Manager                  | North Branch |
+| `pharmacist.north` | Pharmacist               | North Branch |
+| `cashier.north`    | Cashier                  | North Branch |
 
 ### Other commands
 
 | Command       | What it does                                                |
 | ------------- | ----------------------------------------------------------- |
 | `npm run dev` | Starts the server and restarts it when files change         |
-| `npm test`    | Runs the 39 automated API tests on a separate test database |
+| `npm test`    | Runs the 47 automated API tests on a separate test database |
 
 ### Common problems
 
@@ -187,9 +199,11 @@ All accounts use the password **`Pharmacy123!`**. The sample data is fictional.
 ## Documentation
 
 - [API reference](docs/API.md): every endpoint, request body, and status code
-- [Database design and ERD](docs/ERD.md)
+- **Swagger UI:** with the server running, open <http://localhost:3000/api-docs> to browse and try every endpoint
+- [Database design and ERD](docs/ERD.md): 10 tables, and what was simplified
 - [Testing and results](docs/TESTING.md)
-- [Design notes](docs/DESIGN.md)
+- [Design notes, including why and how the system was simplified](docs/DESIGN.md)
+- [User guide for pharmacy staff](docs/USER_GUIDE.md)
 - [Postman collection](docs/pharmacy.postman_collection.json)
 
 ## Limitations

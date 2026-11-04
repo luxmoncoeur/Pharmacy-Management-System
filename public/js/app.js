@@ -1,39 +1,26 @@
 import { api } from './api.js';
 import { html, render, $, on } from './dom.js';
 import { icon } from './icons.js';
-import { session, loadSession, can, ROLES } from './session.js';
+import { session, loadSession, can, canSell, ROLES } from './session.js';
 import { route, resolve, onRouteChange } from './router.js';
-import { initials, ROLE_LABELS } from './format.js';
+import { initials, roleLabel } from './format.js';
 import { getThemePref, setThemePref } from './theme.js';
 import { toastError } from './ui/toast.js';
 
-// Each entry: route name, label, icon, roles that see it, lazy view module.
+// One short list, no groups. Each entry: route name, label, icon, who sees it, lazy view module.
+const everyone = () => true;
 const NAV = [
-  { items: [
-    ['dashboard', 'Dashboard', 'layout-dashboard', ROLES.ALL, () => import('./views/dashboard.js')],
-  ] },
-  { group: 'Counter', items: [
-    ['pos', 'Point of sale', 'shopping-cart', ROLES.SELLING, () => import('./views/pos.js')],
-    ['sales', 'Sales', 'receipt', ROLES.ALL, () => import('./views/sales.js')],
-    ['prescriptions', 'Prescriptions', 'clipboard-list', ROLES.DISPENSING, () => import('./views/prescriptions.js')],
-    ['customers', 'Customers', 'users', ROLES.ALL, () => import('./views/customers.js')],
-  ] },
-  { group: 'Stock', items: [
-    ['medicines', 'Medicines', 'pill', ROLES.ALL, () => import('./views/medicines.js')],
-    ['inventory', 'Inventory', 'package', ROLES.DISPENSING, () => import('./views/inventory.js')],
-    ['transfers', 'Transfers', 'arrow-left-right', ROLES.MANAGEMENT, () => import('./views/transfers.js')],
-    ['suppliers', 'Suppliers', 'truck', ROLES.MANAGEMENT, () => import('./views/suppliers.js')],
-  ] },
-  { group: 'Management', items: [
-    ['reports', 'Reports', 'chart-column', ROLES.MANAGEMENT, () => import('./views/reports.js')],
-    ['users', 'Staff accounts', 'user', ROLES.MANAGEMENT, () => import('./views/users.js')],
-    ['pharmacists', 'Pharmacists', 'stethoscope', ROLES.MANAGEMENT, () => import('./views/pharmacists.js')],
-    ['branches', 'Branches', 'building-2', ['admin'], () => import('./views/branches.js')],
-    ['audit', 'Audit log', 'shield-check', ['admin'], () => import('./views/audit.js')],
-  ] },
+  ['home', 'Home', 'layout-dashboard', everyone, () => import('./views/dashboard.js')],
+  ['pos', 'Sell', 'shopping-cart', canSell, () => import('./views/pos.js')],
+  ['sales', 'Sales', 'receipt', everyone, () => import('./views/sales.js')],
+  ['prescriptions', 'Prescriptions', 'clipboard-list', everyone, () => import('./views/prescriptions.js')],
+  ['stock', 'Medicines & Stock', 'pill', everyone, () => import('./views/stock.js')],
+  ['customers', 'Customers', 'users', everyone, () => import('./views/customers.js')],
+  ['reports', 'Reports', 'chart-column', () => can(...ROLES.MANAGEMENT), () => import('./views/reports.js')],
+  ['settings', 'Settings', 'sliders-horizontal', () => can(...ROLES.MANAGEMENT), () => import('./views/settings.js')],
 ];
 
-const LABELS = Object.fromEntries(NAV.flatMap((g) => g.items.map(([name, label]) => [name, label])));
+const LABELS = Object.fromEntries(NAV.map(([name, label]) => [name, label]));
 LABELS.account = 'Your account';
 
 function renderSidebar(badges = {}) {
@@ -47,18 +34,13 @@ function renderSidebar(badges = {}) {
       </div>
     </div>
     <nav class="nav" aria-label="Sections">
-      ${NAV.map((g) => {
-        const items = g.items.filter(([, , , roles]) => roles.includes(u.role));
-        if (!items.length) return '';
-        return html`${g.group ? html`<div class="nav-group">${g.group}</div>` : ''}
-          ${items.map(([name, label, ic]) => html`<a href="#/${name}" data-nav="${name}">${icon(ic)}<span>${label}</span>
-            ${badges[name] ? html`<span class="count" aria-label="${badges[name]} need attention">${badges[name]}</span>` : ''}</a>`)}`;
-      })}
+      ${NAV.filter(([, , , allowed]) => allowed()).map(([name, label, ic]) => html`<a href="#/${name}" data-nav="${name}">${icon(ic)}<span>${label}</span>
+        ${badges[name] ? html`<span class="count" aria-label="${badges[name]} need attention">${badges[name]}</span>` : ''}</a>`)}
     </nav>
     <div class="sidebar-footer">
       <button class="user-chip" type="button" id="user-menu-btn" aria-haspopup="menu" aria-expanded="false">
         <span class="avatar" aria-hidden="true">${initials(u.full_name)}</span>
-        <span class="truncate"><span class="name truncate">${u.full_name}</span><span class="role">${ROLE_LABELS[u.role]}</span></span>
+        <span class="truncate"><span class="name truncate">${u.full_name}</span><span class="role">${roleLabel(u)}</span></span>
       </button>
     </div>`);
   markActive();
@@ -120,18 +102,12 @@ function openUserMenu(btn) {
 export async function refreshBadges() {
   const badges = {};
   try {
-    if (can(...ROLES.DISPENSING)) {
-      const [rx, alerts] = await Promise.all([
-        api.get('/prescriptions', { status: 'pending', limit: 1 }),
-        api.get('/inventory/alerts'),
-      ]);
-      badges.prescriptions = rx.meta.total || 0;
-      badges.inventory = alerts.data.expired.length + alerts.data.near_expiry.length + alerts.data.low_stock.length || 0;
-    }
-    if (can(...ROLES.MANAGEMENT)) {
-      const dash = await api.get('/dashboard');
-      badges.transfers = dash.data.transfers.to_dispatch + dash.data.transfers.to_receive || 0;
-    }
+    const [rx, alerts] = await Promise.all([
+      api.get('/prescriptions', { status: 'pending', limit: 1 }),
+      api.get('/inventory/alerts'),
+    ]);
+    badges.prescriptions = rx.meta.total || 0;
+    badges.stock = alerts.data.expired.length + alerts.data.near_expiry.length + alerts.data.low_stock.length || 0;
   } catch { /* Badges are a convenience; the pages themselves show the real state. */ }
   renderSidebar(badges);
 }
@@ -156,9 +132,7 @@ async function start() {
     return;
   }
 
-  for (const group of NAV) {
-    for (const [name, , , roles, loader] of group.items) route(name, loader, { allowed: () => roles.includes(session.user.role) });
-  }
+  for (const [name, , , allowed, loader] of NAV) route(name, loader, { allowed });
   route('account', () => import('./views/account.js'));
 
   renderSidebar();
@@ -178,8 +152,10 @@ async function start() {
   window.addEventListener('hashchange', () => refreshBadges());
   window.addEventListener('pms:data-changed', () => refreshBadges());
 
-  if (!location.hash) location.replace(session.user.role === 'cashier' ? '#/pos' : '#/dashboard');
-  resolve(session.user.role === 'cashier' ? 'pos' : 'dashboard');
+  // Cashiers start at the till; everyone else starts at Home.
+  const start = session.user.role === 'cashier' && canSell() ? 'pos' : 'home';
+  if (!location.hash) location.replace(`#/${start}`);
+  resolve(start);
 }
 
 start();

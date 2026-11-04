@@ -1,14 +1,13 @@
 import { query } from '../config/db.js';
 import { where, like, orderBy } from '../utils/sql.js';
 
-const SELECT = `SELECT c.*, TIMESTAMPDIFF(YEAR, c.birthdate, CURDATE()) AS age,
-                       CONCAT(c.firstname, ' ', c.lastname) AS full_name
+const SELECT = `SELECT c.*, CONCAT(c.firstname, ' ', c.lastname) AS full_name
                   FROM tbl_customers c`;
 
 const Customer = {
   list: async ({ q, status, discount, sort, dir, limit, offset }) => {
     const w = where()
-      .if(q, "(CONCAT(c.firstname, ' ', c.lastname) LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.discount_id_no LIKE ?)", ...(q ? Array(4).fill(like(q)) : []))
+      .if(q, "(CONCAT(c.firstname, ' ', c.lastname) LIKE ? OR c.phone LIKE ? OR c.discount_id_no LIKE ?)", ...(q ? Array(3).fill(like(q)) : []))
       .if(status !== 'all' ? status : null, 'c.is_active = ?', status === 'active' ? 1 : 0)
       .if(discount, 'c.discount_id_type = ?', discount);
     const rows = await query(
@@ -20,12 +19,12 @@ const Customer = {
   },
   getById: async (id) => (await query(`${SELECT} WHERE c.customer_id = ?`, [id]))[0],
   create: async (c) => (await query(
-    'INSERT INTO tbl_customers (firstname, lastname, birthdate, phone, email, address, discount_id_type, discount_id_no, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [c.firstname, c.lastname, c.birthdate ?? null, c.phone ?? null, c.email ?? null, c.address ?? null, c.discount_id_type, c.discount_id_type === 'none' ? null : c.discount_id_no, c.is_active ?? true],
+    'INSERT INTO tbl_customers (firstname, lastname, phone, discount_id_type, discount_id_no, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+    [c.firstname, c.lastname, c.phone ?? null, c.discount_id_type, c.discount_id_type === 'none' ? null : c.discount_id_no, c.is_active ?? true],
   )).insertId,
   update: (id, c) => query(
-    'UPDATE tbl_customers SET firstname = ?, lastname = ?, birthdate = ?, phone = ?, email = ?, address = ?, discount_id_type = ?, discount_id_no = ?, is_active = ? WHERE customer_id = ?',
-    [c.firstname, c.lastname, c.birthdate ?? null, c.phone ?? null, c.email ?? null, c.address ?? null, c.discount_id_type, c.discount_id_type === 'none' ? null : c.discount_id_no, c.is_active ?? true, id],
+    'UPDATE tbl_customers SET firstname = ?, lastname = ?, phone = ?, discount_id_type = ?, discount_id_no = ?, is_active = ? WHERE customer_id = ?',
+    [c.firstname, c.lastname, c.phone ?? null, c.discount_id_type, c.discount_id_type === 'none' ? null : c.discount_id_no, c.is_active ?? true, id],
   ),
   setActive: (id, active) => query('UPDATE tbl_customers SET is_active = ? WHERE customer_id = ?', [active, id]),
   history: async (id, branchId) => {
