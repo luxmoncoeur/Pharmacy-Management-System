@@ -60,6 +60,7 @@ Pharmacies need accurate records of medicine stock, expiry dates, sales, and pre
 ```
 Pharmacy-Management-System/
 ├── database/
+│   ├── pharmacy_pms.sql        # Complete database in one file (import in phpMyAdmin)
 │   ├── schema.sql              # Tables, primary/foreign keys, constraints
 │   └── seed.sql                # Sample data (branches, users, medicines, sales)
 ├── docs/
@@ -82,6 +83,7 @@ Pharmacy-Management-System/
 ├── scripts/
 │   ├── db-setup.js             # Creates the database (npm run db:setup)
 │   ├── generate-seed.js        # Builds seed.sql
+│   ├── build-sql.js            # Builds pharmacy_pms.sql from schema + seed
 │   └── generate-postman.js     # Builds the Postman collection
 ├── src/                        # Backend (Node.js + Express)
 │   ├── server.js               # Starts the server
@@ -135,13 +137,17 @@ Browser (fetch) → routes → middleware → controller → model / service →
 
    The defaults already match XAMPP (user `root`, no password). Change `DB_USER` or `DB_PASSWORD` only if your MySQL uses different credentials.
 
-4. **Create the database with sample data.**
+4. **Create the database with sample data.** Choose one:
 
-   ```bash
-   npm run db:setup
-   ```
+   - **Terminal:**
 
-   This creates the `pharmacy_pms` database from `database/schema.sql` and `database/seed.sql`. Running it again resets everything to fresh sample data.
+     ```bash
+     npm run db:setup
+     ```
+
+   - **phpMyAdmin:** open <http://localhost/phpmyadmin>, click the **Import** tab (with no database selected), choose `database/pharmacy_pms.sql`, and click **Import**.
+
+   Either way you get the `pharmacy_pms` database with all tables and sample data. Doing it again resets everything to fresh sample data.
 
 5. **Start the system.**
    ```bash
