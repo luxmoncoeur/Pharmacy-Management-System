@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Sign in · Pharmacy Management System</title>
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+  <script src="/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <script type="module" src="/js/login.js"></script>
+</head>
+<body>
+  <main class="login">
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-pill"></use></svg></span>
+        <div>
+          <div class="brand-name">Pharmacy Management System</div>
+          <div class="brand-branch">POS, inventory and prescriptions</div>
+        </div>
+      </div>
+      <form class="panel login-panel" id="login-form" novalidate>
+        <div>
+          <h1>Sign in</h1>
+          <p class="muted small">Use the account your administrator gave you.</p>
+        </div>
+        <div class="form-error" role="alert" hidden></div>
+        <div class="field">
+          <label for="username">Username</label>
+          <input class="input" id="username" name="username" autocomplete="username" required autofocus aria-describedby="username-error">
+          <span class="error" id="username-error"></span>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-error">
+          <span class="error" id="password-error"></span>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in</button>
+      </form>
+      <p class="login-footnote">Demo accounts are listed in the project README.</p>
+    </div>
+  </main>
+</body>
+</html>

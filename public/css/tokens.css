@@ -1,0 +1,126 @@
+/*
+  Design tokens. One accent (pharmacy green) plus neutral grays; red, amber and green only carry status.
+  Every text/background pair below meets WCAG AA (4.5:1) in both themes. See docs/DESIGN.md.
+*/
+:root {
+  color-scheme: light;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --bg: #f3f4f3;
+  --surface: #ffffff;
+  --surface-2: #f8f9f8;
+  --surface-sunken: #eef0ef;
+  --border: #e2e5e3;
+  --border-strong: #cdd2cf;
+  --text: #16191a;
+  --text-2: #4d5457;
+  --text-3: #646b6f;
+  --text-on-accent: #ffffff;
+  --text-on-danger: #ffffff;
+
+  --accent: #0b7a5a;
+  --accent-hover: #086a4e;
+  --accent-soft: #e5f2ec;
+  --accent-text: #076448;
+  --chart: #0b7a5a;
+  --chart-muted: #c7d6cf;
+
+  --danger: #b4302a;
+  --danger-hover: #9c2722;
+  --danger-soft: #fbeceb;
+  --danger-text: #a02a24;
+  --warning: #b77400;
+  --warning-soft: #fcf2df;
+  --warning-text: #7d4f00;
+  --success-soft: #e5f2ec;
+  --success-text: #076448;
+  --info-soft: #e9eff8;
+  --info-text: #2c4f86;
+
+  --focus: #0b7a5a;
+  --scrim: rgb(16 20 18 / 0.36);
+
+  --material: rgb(255 255 255 / 0.72);
+  --material-edge: rgb(255 255 255 / 0.6);
+  --material-blur: blur(20px) saturate(180%);
+
+  --shadow-pop: 0 1px 2px rgb(16 24 20 / 0.06), 0 8px 24px rgb(16 24 20 / 0.12);
+  --shadow-dialog: 0 2px 6px rgb(16 24 20 / 0.08), 0 24px 64px rgb(16 24 20 / 0.22);
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --control-h: 2.5rem;
+  --sidebar-w: 15rem;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 160ms;
+  --dur-pop: 180ms;
+  --dur-dialog-in: 220ms;
+  --dur-dialog-out: 160ms;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f1111;
+  --surface: #181b1b;
+  --surface-2: #1e2222;
+  --surface-sunken: #141616;
+  --border: #2a2f2f;
+  --border-strong: #3a4040;
+  --text: #eceeed;
+  --text-2: #b0b6b4;
+  --text-3: #959c9a;
+  --text-on-accent: #04150e;
+  --text-on-danger: #1a0605;
+
+  --accent: #2ea67d;
+  --accent-hover: #38b68a;
+  --accent-soft: #15302a;
+  --accent-text: #5fcca3;
+  --chart: #2ea67d;
+  --chart-muted: #2f4a40;
+
+  --danger: #e0564e;
+  --danger-hover: #ea6a62;
+  --danger-soft: #3a1c1a;
+  --danger-text: #f08a83;
+  --warning: #e0a030;
+  --warning-soft: #362a13;
+  --warning-text: #f0c060;
+  --success-soft: #15302a;
+  --success-text: #5fcca3;
+  --info-soft: #1b2638;
+  --info-text: #9bb8e8;
+
+  --focus: #5fcca3;
+  --scrim: rgb(0 0 0 / 0.55);
+
+  --material: rgb(24 27 27 / 0.72);
+  --material-edge: rgb(255 255 255 / 0.06);
+
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+  --shadow-dialog: 0 2px 6px rgb(0 0 0 / 0.4), 0 24px 64px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--surface); --material-blur: none; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --border: #9aa29e; --border-strong: #6d7571; --text-3: var(--text-2); --material: var(--surface); --material-blur: none; }
+  :root[data-theme="dark"] { --border: #5b6361; --border-strong: #7c8582; }
+}
