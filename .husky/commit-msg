@@ -1,0 +1,3 @@
+# Rejects commit messages that are not Conventional Commits (installed by `npm install` via the
+# "prepare" script). Bypass once with `git commit --no-verify` if you really must.
+npx --no -- commitlint --edit "$1"

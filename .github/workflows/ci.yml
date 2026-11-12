@@ -1,0 +1,129 @@
+name: CI
+
+# Pipeline from luxmoncoeur/ci-cd-template (reusable workflows pinned to v1.1.0 by commit SHA).
+#
+#   pull_request:  checks (lint) ─┐
+#                  test (MySQL) ──┤
+#                  release-preview (PR title check + "this PR would release vX.Y.Z") ─┴─> ci  (required check)
+#   push to main:  checks + test ──> ci ──> release (semantic-release: version, CHANGELOG, tag, GitHub Release)
+#
+# The template's own test job has no database, and this app's API tests need MySQL. So the template runs
+# lint only, and `test` below runs `npm test` against a MySQL service container.
+#
+# No deploy job: the template's deploy targets Vercel, which doesn't fit an Express app with MySQL-backed
+# sessions. The app is run locally with XAMPP (see README).
+#
+# No `paths-ignore`: if a required check's workflow is skipped by a path filter, GitHub leaves the check
+# "pending" forever and the PR can't merge.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # The defaults plus `edited`, so renaming a PR re-runs the title check and the release preview.
+    types: [opened, synchronize, reopened, edited]
+  # Re-run by hand from the Actions tab. On main this also retries a release that failed.
+  workflow_dispatch:
+
+# A new push (or edit) to a PR cancels that PR's older run. Runs on main never cancel each other.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/ci-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    with:
+      node-version: "22"
+      package-manager: npm
+      run-lint: true
+      run-typecheck: false # plain JavaScript, no TypeScript
+      run-test: false # runs in `test` below, which has the MySQL service
+      run-build: false # nothing to build: Express serves public/ as is
+
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ci-root
+      DB_NAME_TEST: pharmacy_pms_test
+      SESSION_SECRET: ci-only-session-secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # Creates the test database from database/schema.sql + seed.sql, then runs every API test.
+      - run: npm test
+
+  # PRs only: fails on a non-Conventional PR title (squash merges commit the title), and comments the
+  # release the PR would trigger.
+  release-preview:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write # the preview comment
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/release-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    with:
+      dry-run: true
+
+  # The one required status check for branch protection. `if: always()` makes it report even when
+  # something upstream failed (a skipped required check would count as passing).
+  ci:
+    needs: [checks, test, release-preview]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: All checks passed?
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          CHECKS: ${{ needs.checks.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$NEEDS" | jq '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled")] | length')
+          if [ "$CHECKS" != "success" ] || [ "$TEST" != "success" ] || [ "$bad" != "0" ]; then
+            echo "::error title=CI failed::One or more required jobs did not succeed."
+            exit 1
+          fi
+
+  # After CI passed on main: semantic-release decides from the commit messages whether to release
+  # (feat → minor, fix/perf → patch, `!`/BREAKING CHANGE → major). Its own commit carries [skip ci].
+  release:
+    needs: [ci]
+    if: >-
+      !cancelled() && needs.ci.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write # push the release commit and tag, create the GitHub Release
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/release-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    secrets:
+      # Optional. Only needed when main is protected (see the template README → "Protecting main").
+      deploy-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
