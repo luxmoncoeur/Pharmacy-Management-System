@@ -37,15 +37,18 @@ The menu has 8 items (cashiers see 6):
 | --- | --- |
 | **Home** | Big buttons for the common jobs (New sale, Record a prescription, Receive delivery, Look up a medicine), today's sales, and one **Needs attention** list: expired first, then expiring soon, then running low. |
 | **Sell** | Search or scan, pay by cash, GCash or card, print the receipt. Senior Citizen and PWD discounts (20% off, VAT-exempt). Medicines marked Rx need a checked prescription. |
-| **Sales** | Past sales. Reprint a receipt; managers can void a sale and the stock goes back on the shelf. |
+| **Sales** | Past sales. Reprint a receipt; managers can void a sale and the stock goes back on the shelf. **Close the day** counts the cash drawer (bills and coins) against the day's cash sales, shows Balanced, Short or Over, and prints a closing slip to sign. |
 | **Prescriptions** | Three steps: record what the paper says, a pharmacist checks it, then give it out at Sell. A pharmacist can **Save and verify** in one step. Every prescription has a **printable record** (patient, doctor and PRC no., medicines, the pharmacist who verified it and their PRC no., and what was given out) to show the patient, a doctor, or an inspector. |
 | **Medicines & Stock** | One list with filter chips (Running low, Expiring soon, Expired, Out of stock). Open a medicine to see its stock by expiry date, receive a delivery, remove expired or damaged stock, send stock to another branch, and see its stock history. |
 | **Customers** | Name, phone, and Senior Citizen or PWD ID, plus their purchases and prescriptions. |
 | **Reports** | Sales summary, Best-selling medicines, and Stock and expiry. Each can be printed or downloaded for Excel. |
 | **Settings** | Staff accounts, and Branches for the owner. Categories and suppliers are simply typed in where they are used, with suggestions. |
 
-Behind the scenes, the safety rules are unchanged:
-- Sell always takes the stock that expires first, and expired stock can never be sold.
+A **bell** at the top of every page shows notifications for each role, checked every minute: prescriptions to check (pharmacists), prescriptions checked or rejected (the cashier who recorded them), voided sales and expiring PRC licenses (managers), and expired, out-of-stock, low and expiring stock. New prescriptions also pop up, with optional desktop alerts.
+
+Behind the scenes, the safety rules:
+- Sell always takes the stock that expires first, and expired stock can never be sold. An expired lot can't be re-dated, and a lot that has sold units can only have its expiry moved earlier.
+- Prescriptions are valid for 180 days from the date written.
 - A failed sale saves nothing.
 - Every stock change is recorded with who did it and why, and voided sales keep who voided them and the reason.
 
@@ -64,11 +67,13 @@ New staff can start with the [User guide](docs/USER_GUIDE.md).
 | API docs        | Swagger UI (`swagger-ui-express`) at `/api-docs`, from an OpenAPI 3 spec    |
 | Testing         | Node test runner, `supertest`, Postman                                      |
 | Version control | Git and GitHub                                                              |
+| CI/CD           | GitHub Actions from [ci-cd-template](https://github.com/luxmoncoeur/ci-cd-template), ESLint, Conventional Commits, semantic-release |
 
 ## File tree
 
 ```
 Pharmacy-Management-System/
+├── .github/workflows/ci.yml    # CI: lint, API tests against MySQL, PR title check, automatic releases
 ├── database/
 │   ├── pharmacy_pms.sql        # Complete database in one file (import in phpMyAdmin)
 │   ├── schema.sql              # The 10 tables, primary/foreign keys, constraints
@@ -186,7 +191,7 @@ All accounts use the password **`Pharmacy123!`**. The sample data is fictional.
 | Command       | What it does                                                |
 | ------------- | ----------------------------------------------------------- |
 | `npm run dev` | Starts the server and restarts it when files change         |
-| `npm test`    | Runs the 47 automated API tests on a separate test database |
+| `npm test`    | Runs the 58 automated API tests on a separate test database |
 
 ### Common problems
 
@@ -205,6 +210,25 @@ All accounts use the password **`Pharmacy123!`**. The sample data is fictional.
 - [Design notes, including why and how the system was simplified](docs/DESIGN.md)
 - [User guide for pharmacy staff](docs/USER_GUIDE.md)
 - [Postman collection](docs/pharmacy.postman_collection.json)
+- [Commit message cheat sheet](docs/conventional-commits.md)
+
+## CI/CD
+
+GitHub Actions runs [.github/workflows/ci.yml](.github/workflows/ci.yml) on every pull request and every push to `main`. It uses the reusable workflows from [ci-cd-template](https://github.com/luxmoncoeur/ci-cd-template), pinned to v1.1.0.
+
+| Job | What it does |
+| --- | --- |
+| `checks` | `npm run lint` (ESLint), from the template |
+| `test` | Starts a MySQL 8.4 container, builds the test database from `schema.sql` and `seed.sql`, and runs `npm test` |
+| `release-preview` | Pull requests only: checks that the PR title is a Conventional Commit and comments which version merging it would release |
+| `ci` | The single required check: passes only when the jobs above passed |
+| `release` | On `main` after `ci` passes: semantic-release reads the commit messages, bumps the version in `package.json`, updates `CHANGELOG.md`, tags `vX.Y.Z`, and creates a GitHub Release |
+
+**Commit messages decide the version** ([cheat sheet](docs/conventional-commits.md)): `feat: …` is a minor release, `fix: …` a patch, `feat!: …` or a `BREAKING CHANGE:` footer a major one, and `docs`, `chore`, `test`, `ci` or `refactor` release nothing. `npm install` sets up a git hook that checks each commit message; in CI the PR title is checked, because squash merges use it as the commit message.
+
+There is no deploy step: the template's deploy targets Vercel, which does not suit an Express app with MySQL-backed sessions. Run the system locally with XAMPP as described above.
+
+**One-time GitHub setup:** in Settings → General → Pull Requests, allow only squash merging and set the default commit message to "Pull request title and description". Then add a branch ruleset for `main` that requires a pull request and the `ci` status check. If `main` is protected this way, the release job needs a deploy key to push its release commit; see [Protecting main](https://github.com/luxmoncoeur/ci-cd-template#protecting-main) in the template README.
 
 ## Limitations
 

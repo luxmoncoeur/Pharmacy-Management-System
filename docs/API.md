@@ -110,8 +110,8 @@ Every unit of stock belongs to a lot (a `batch` in the database) with a lot numb
 |---|---|---|---|
 | GET | `/batches` | any | `q, medicine, branch, expiry=expired\|near\|ok, in_stock=true`; `sort: expiry_date, qty_on_hand, received_at, generic_name` |
 | GET | `/batches/:id` | any | Own branch only. |
-| POST | `/batches` | M, P | **Receive a delivery.** `{ medicine_id, batch_no, expiry_date (future), quantity, cost_price?, supplier?, branch_id (owner only) }`. `cost_price` defaults to 0. |
-| PATCH | `/batches/:id` | M | Fixes lot details: `{ batch_no, expiry_date, cost_price, supplier? }`. Quantity cannot change here. |
+| POST | `/batches` | M, P | **Receive a delivery.** `{ medicine_id, batch_no, expiry_date (future), quantity, cost_price?, supplier?, branch_id (owner only) }`. `cost_price` defaults to 0. If the same lot number is already on file at the branch with the **same** expiry, the units are added to that lot (200, not 201). With a **different** expiry it returns 409 on `batch_no`. |
+| PATCH | `/batches/:id` | M | Fixes lot details: `{ batch_no, expiry_date, cost_price, supplier? }`. Quantity cannot change here. A changed expiry must be in the future. An expired lot cannot be re-dated, and once units from a lot are sold its expiry can only move earlier (409). |
 | POST | `/batches/:id/adjust` | M, P | `{ type, qty_change, reason }`. `type: write_off` removes expired or damaged stock (negative `qty_change`, allowed for pharmacists). `type: adjust` is a count correction (signed, managers only). Returns 409 if the lot would go below zero. |
 | GET | `/inventory/alerts` | any | `{ low_stock, near_expiry, expired, near_expiry_days }` |
 | GET | `/inventory/reorder` | M, P | Medicines at or below their reorder level, with `sold_30d` and `suggested_qty`. |
@@ -123,10 +123,12 @@ Every unit of stock belongs to a lot (a `batch` in the database) with a lot numb
 |---|---|---|---|
 | GET | `/prescriptions` | any | `q, status=pending\|verified\|partially_dispensed\|dispensed\|rejected\|dispensable, customer, branch` |
 | GET | `/prescriptions/:id` | any | The full record used for the printable copy: patient, doctor, `items` (with `remaining` and branch `stock_on_hand`), the verifying pharmacist's name and `pharmacist_license_no`, and `sales` (each sale that gave out medicine). |
-| POST | `/prescriptions` | any | `{ customer_id, doctor_name, doctor_license_no, date_issued (not in the future), notes?, verify?, items: [{ medicine_id, quantity, instructions? }] }`. Starts as `pending`. With `verify: true` a pharmacist saves and verifies it in one step (403 for other roles). |
+| POST | `/prescriptions` | any | `{ customer_id, doctor_name, doctor_license_no, date_issued (not in the future), notes?, verify?, items: [{ medicine_id, quantity, instructions? }] }`. Starts as `pending`. With `verify: true` a pharmacist saves and verifies it in one step (403 for other roles). Records include `days_since_issued` and `is_expired`. |
 | PUT | `/prescriptions/:id` | any | Only while `pending`. |
 | DELETE | `/prescriptions/:id` | any | Only while `pending`. Reviewed prescriptions are permanent records. |
 | POST | `/prescriptions/:id/verify` | P | Needs a pharmacist account with a PRC license that has not expired. Sets the status to `verified`. |
+
+Prescriptions are valid for **180 days** from `date_issued` (`RX_VALID_DAYS` in `src/config/pricing.js`). An older one can still be recorded and rejected, but verifying it (including `verify: true`) or giving it out at checkout returns 409, and `status=dispensable` leaves it out.
 | POST | `/prescriptions/:id/reject` | P | `{ reason }` |
 
 ## Sales
@@ -153,7 +155,7 @@ Every unit of stock belongs to a lot (a `batch` in the database) with a lot numb
 ```
 
 Rules, all enforced in one transaction:
-- Rx medicines require a `prescription_id` that is `verified` or `partially_dispensed`, from the same branch, for the same customer, with enough quantity remaining.
+- Rx medicines require a `prescription_id` that is `verified` or `partially_dispensed`, from the same branch, for the same customer, written within the last 180 days, with enough quantity remaining.
 - `discount_type` other than `none` requires a customer whose ID on file matches.
 - Stock is taken earliest-expiry first from lots that have not expired. A shortage returns 409 with `errors["items.N"]`.
 - Totals are computed on the server and client totals are ignored. Cash must cover the total. GCash and card require `payment_ref`.
@@ -170,4 +172,6 @@ Rules, all enforced in one transaction:
 | Method | Path | Roles | Notes |
 |---|---|---|---|
 | GET | `/dashboard` | any | Today's and yesterday's sales, best sellers this week, stock and expiry counts, prescriptions to check and ready, recent sales. Managers also get `license_alerts`; the owner viewing all branches also gets `branches`. |
+| GET | `/notifications` | any | What needs this person's attention, built from existing data (no table of its own). `branch` (owner only). `data` is a list of `{ id, type, severity, title, body, link, at }`, newest first. `meta.counts` is `{ prescriptions, stock }` for the sidebar. Types by role: `rx_pending` (pharmacists, managers); `rx_reviewed` (the person who recorded a prescription someone else checked, last 3 days); `sale_voided` (managers, voids by someone else, last 3 days); `stock_expired`, `stock_out`, `stock_low`, `stock_expiring` and `license` (managers; pharmacists get the stock ones). Read/unread is kept by the browser. |
+| GET | `/cash/summary` | any | End-of-day totals for one person and one day: `transactions, total, cash_count, cash, gcash, card, voided_count, voided_total, first_sale_at, last_sale_at, person`. `cashier` (defaults to you; required for the owner), `date` (defaults to today; past days and other people are for managers, own branch only). The cash count itself is printed, not stored. |
 | GET | `/reports/:name` | M | `name` is one of `daily-sales` (Sales summary), `sales-by-medicine` (Best-selling medicines), `stock-status` (Stock and expiry). Parameters: `from, to, branch, format=json\|csv`. |
