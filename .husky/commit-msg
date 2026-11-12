@@ -1,3 +1,4 @@
-# Rejects commit messages that are not Conventional Commits (installed by `npm install` via the
-# "prepare" script). Bypass once with `git commit --no-verify` if you really must.
-npx --no -- commitlint --edit "$1"
+# Checks that commit messages follow Conventional Commits (installed by `npm install` via "prepare").
+# Warning only for now: a message like "Add login page" still commits, but releases only count
+# feat:/fix:/perf: commits. See docs/conventional-commits.md. To enforce it, drop the `|| ...` part.
+npx --no -- commitlint --edit "$1" || echo "⚠  Commit saved, but the message isn't a Conventional Commit (e.g. 'feat: add login page'). It won't count toward a release. See docs/conventional-commits.md"

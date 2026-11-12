@@ -88,6 +88,9 @@ jobs:
     uses: luxmoncoeur/ci-cd-template/.github/workflows/release-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
     with:
       dry-run: true
+      # The team uses regular merge commits for now, so predict from the PR's own commits and don't check
+      # the PR title. Switch to `true` (the template default) once everyone squash-merges.
+      squash-merge: false
 
   # The one required status check for branch protection. `if: always()` makes it report even when
   # something upstream failed (a skipped required check would count as passing).
