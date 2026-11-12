@@ -205,3 +205,37 @@ test('dashboard and reports are computed from data', async () => {
   assert.match(csv.text, /Medicine,Brand/);
   assert.equal((await manager.get('/api/reports/unknown')).status, 404);
 });
+
+const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+
+test('a prescription older than 180 days cannot be verified', async () => {
+  const pharmacist = await loginAs('pharmacist.main');
+  const cashier = await loginAs('cashier.main');
+  const body = { customer_id: 4, doctor_name: 'Dr. Old', doctor_license_no: 'MD-OLD-1', date_issued: daysAgo(182), items: [{ medicine_id: 6, quantity: 5 }] };
+
+  const saved = await cashier.post('/api/prescriptions').send(body);
+  assert.equal(saved.status, 201, 'an old prescription can still be recorded');
+  assert.equal(saved.body.data.is_expired, 1);
+  const verify = await pharmacist.post(`/api/prescriptions/${saved.body.data.prescription_id}/verify`);
+  assert.equal(verify.status, 409);
+  const reject = await pharmacist.post(`/api/prescriptions/${saved.body.data.prescription_id}/reject`).send({ reason: 'Expired' });
+  assert.equal(reject.status, 200, 'it can still be rejected');
+
+  const saveAndVerify = await pharmacist.post('/api/prescriptions').send({ ...body, verify: true });
+  assert.equal(saveAndVerify.status, 409);
+});
+
+test('a verified prescription that has since expired cannot be given out', async () => {
+  const pharmacist = await loginAs('pharmacist.main');
+  const cashier = await loginAs('cashier.main');
+  const rx = await pharmacist.post('/api/prescriptions').send({
+    customer_id: 4, doctor_name: 'Dr. Old', doctor_license_no: 'MD-OLD-2', date_issued: daysAgo(0), items: [{ medicine_id: 6, quantity: 5 }], verify: true,
+  });
+  const rxId = rx.body.data.prescription_id;
+  await pool.query('UPDATE tbl_prescription SET date_issued = DATE_SUB(CURDATE(), INTERVAL 181 DAY) WHERE prescription_id = ?', [rxId]);
+
+  const sale = await cashier.post('/api/sales').send({ prescription_id: rxId, payment_method: 'card', payment_ref: 'OLD', items: [{ medicine_id: 6, quantity: 2 }] });
+  assert.equal(sale.status, 409);
+  const ready = await cashier.get('/api/prescriptions').query({ status: 'dispensable', limit: 200 });
+  assert.ok(!ready.body.data.some((p) => p.prescription_id === rxId), 'expired prescriptions are not offered at Sell');
+});

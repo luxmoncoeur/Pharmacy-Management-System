@@ -4,6 +4,7 @@ import { computeTotals, lineTotal } from '../utils/pricing.js';
 import { receiptNo } from '../utils/receipt.js';
 import { badRequest, conflict, forbidden } from '../utils/http.js';
 import { isOwner } from '../middleware/auth.js';
+import { assertRxValid } from '../utils/rxValidity.js';
 
 const fieldErrors = (list) => Object.fromEntries(list);
 
@@ -47,6 +48,7 @@ export async function checkout(req, input) {
       if (!['verified', 'partially_dispensed'].includes(rx.status)) {
         throw conflict(rx.status === 'pending' ? 'A pharmacist must verify this prescription first.' : `This prescription is ${rx.status.replace('_', ' ')}.`);
       }
+      assertRxValid(rx.date_issued);
       if (customerId && customerId !== rx.customer_id) throw conflict('The prescription belongs to a different customer.', { customer_id: 'Customer does not match the prescription.' });
       customerId = rx.customer_id;
 

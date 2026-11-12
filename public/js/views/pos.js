@@ -268,6 +268,10 @@ export async function render_(container, { query }) {
         toast(rx.status === 'pending' ? 'A pharmacist still needs to check this prescription.' : `Prescription #${rx.prescription_id} is ${rx.status.replace('_', ' ')}.`, { type: 'error' });
         return;
       }
+      if (rx.is_expired) {
+        toast(`Prescription #${rx.prescription_id} was written ${rx.days_since_issued} days ago and has expired. Ask for a new prescription.`, { type: 'error' });
+        return;
+      }
       const { data: customer } = await api.get(`/customers/${rx.customer_id}`);
       state.customer = customer;
       state.discount = customer.discount_id_type !== 'none' ? customer.discount_id_type : 'none';

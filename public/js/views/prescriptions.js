@@ -56,8 +56,9 @@ async function openPrescription(rxId, list) {
     const { data: rx } = await api.get(`/prescriptions/${rxId}`);
     const isPharmacist = session.user.role === 'pharmacist';
     const pending = rx.status === 'pending';
-    const dispensable = ['verified', 'partially_dispensed'].includes(rx.status);
-    const daysOld = Math.floor((Date.now() - new Date(`${rx.date_issued}T00:00:00`).getTime()) / 86400000);
+    const expired = Boolean(rx.is_expired);
+    const dispensable = ['verified', 'partially_dispensed'].includes(rx.status) && !expired;
+    const canVerify = pending && isPharmacist && !expired;
     const dlg = openDialog({
       title: html`Prescription #${rx.prescription_id} ${statusPill(rx.status)}`,
       description: `${rx.customer_name} · ${rx.branch_name}`,
@@ -66,7 +67,7 @@ async function openPrescription(rxId, list) {
         ${pending && isPharmacist ? html`<div class="callout">${icon('info')}<span><strong>Before you verify, check the paper prescription:</strong>
           <ul style="margin:.35rem 0 0 1.1rem;padding:0"><li>The doctor's name, signature and PRC license number are there</li><li>The patient's name matches</li><li>The date is recent and the medicines and amounts below match</li></ul></span></div>` : ''}
         ${pending && !isPharmacist ? html`<div class="callout callout-warn">${icon('clock')}<span>Waiting for a pharmacist to check it. It cannot be given out until then.</span></div>` : ''}
-        ${pending && daysOld > 180 ? html`<div class="callout callout-warn">${icon('triangle-alert')}<span>Issued ${daysOld} days ago. Confirm it is still valid before verifying.</span></div>` : ''}
+        ${expired && ['pending', 'verified', 'partially_dispensed'].includes(rx.status) ? html`<div class="callout callout-danger">${icon('calendar-x')}<span><strong>Expired:</strong> written ${num(rx.days_since_issued)} days ago. Prescriptions are valid for 180 days, so this one can no longer be ${pending ? 'verified' : 'given out'}. Ask the patient for a new prescription.</span></div>` : ''}
         ${rx.status === 'rejected' ? html`<div class="callout callout-danger">${icon('ban')}<span>Rejected: ${rx.rejection_reason}</span></div>` : ''}
         <dl class="details">
           <dt>Patient</dt><dd><a href="#/customers/${rx.customer_id}">${rx.customer_name}</a></dd>
@@ -91,9 +92,9 @@ async function openPrescription(rxId, list) {
         <button class="btn btn-ghost" type="button" data-record>${icon('printer')}Print record</button>
         <span class="spacer"></span>
         ${pending && isPharmacist ? html`<button class="btn btn-lg" type="button" data-reject>${icon('ban')}Reject</button>
-          <button class="btn btn-primary btn-lg" type="button" data-verify>${icon('check')}Verify</button>` : ''}
+          ${canVerify ? html`<button class="btn btn-primary btn-lg" type="button" data-verify>${icon('check')}Verify</button>` : ''}` : ''}
         ${dispensable && canSell() ? html`<a class="btn btn-primary" href="#/pos?rx=${rx.prescription_id}">${icon('shopping-cart')}Give out at Sell</a>` : ''}
-        ${!(pending && isPharmacist) && !(dispensable && canSell()) ? html`<button class="btn btn-primary" type="button" data-close>Done</button>` : ''}`,
+        ${!canVerify && !(dispensable && canSell()) ? html`<button class="btn btn-primary" type="button" data-close>Done</button>` : ''}`,
     });
     const after = (message) => { dlg.close(); toast(message); dataChanged(); list.reload(); };
     on(dlg.el, 'click', 'a[href^="#/"]', () => dlg.close());
