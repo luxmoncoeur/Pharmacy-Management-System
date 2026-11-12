@@ -35,6 +35,7 @@ Rules follow Emil Kowalski's design-engineering guidance.
 | Toasts | Slide up 8px over 250ms. The timer pauses while the tab is hidden or the pointer is over the toast. |
 | Hover states | Only inside `@media (hover: hover) and (pointer: fine)`, so taps on tablets don't leave items stuck in a hover state |
 | Not animated | POS keyboard actions (`/`, `F9`, arrows), cart updates, table refreshes, chart bars. These happen dozens of times an hour, and charts with financial data stay still. |
+| Sign-in page | The one exception, since staff see it once per shift: a staggered rise-in (600ms), a slowly drifting gradient on the brand panel, a pointer spotlight on the card and a short shake after a failed sign-in. Styles live in `public/css/login.css`. |
 | `prefers-reduced-motion` | Transforms are removed; opacity fades remain. |
 
 Only `transform` and `opacity` are animated.
