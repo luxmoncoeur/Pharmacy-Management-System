@@ -1,6 +1,6 @@
 {
   "name": "pharmacy-management-system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Multi-branch Pharmacy Management System with POS, batch and expiry inventory, prescriptions, and reports.",
   "type": "module",
   "main": "src/server.js",

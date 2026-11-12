@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/luxmoncoeur/Pharmacy-Management-System/compare/v1.0.0...v1.1.0) (2026-11-12)
+
+### Features
+
+* **login:** redesign sign-in page with brand panel and subtle animations ([660e398](https://github.com/luxmoncoeur/Pharmacy-Management-System/commit/660e398fe7b49209969845b595a81ef1f83abfcd))
+
 ## 1.0.0 (2026-11-12)
 
 ### Features
