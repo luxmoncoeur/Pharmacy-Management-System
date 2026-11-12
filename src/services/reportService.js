@@ -1,6 +1,6 @@
 import { query } from '../config/db.js';
 import { SELLABLE } from '../utils/sql.js';
-import { NEAR_EXPIRY_DAYS } from '../config/pricing.js';
+import { NEAR_EXPIRY_DAYS, RX_VALID_DAYS } from '../config/pricing.js';
 import User from '../models/userModel.js';
 
 const scope = (column, branchId) => (branchId ? { sql: `AND ${column} = ?`, params: [branchId] } : { sql: '', params: [] });
@@ -47,7 +47,7 @@ export async function dashboard(branchId, { owner, manager }) {
     [...(branchId ? [branchId] : []), ...bb.params, ...bb.params],
   );
   const [rx] = await query(
-    `SELECT SUM(p.status = 'pending') AS pending, SUM(p.status IN ('verified', 'partially_dispensed')) AS ready
+    `SELECT SUM(p.status = 'pending') AS pending, SUM(p.status IN ('verified', 'partially_dispensed') AND p.date_issued >= DATE_SUB(CURDATE(), INTERVAL ${RX_VALID_DAYS} DAY)) AS ready
        FROM tbl_prescription p WHERE 1 = 1 ${pb.sql}`, pb.params,
   );
   const recentSales = await query(
@@ -145,4 +145,32 @@ export function toCsv(columns, rows) {
     return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
   return [columns.map(([, label]) => label).join(','), ...rows.map((r) => columns.map(([key]) => escape(r[key])).join(','))].join('\n');
+}
+
+/**
+ * End-of-day totals for one person's sales on one day, for counting the cash drawer.
+ * Voided sales are listed separately and are not part of the cash expected in the drawer.
+ */
+export async function cashSummary(cashierId, day) {
+  const [row] = await query(
+    `SELECT SUM(s.status = 'completed') AS transactions,
+            COALESCE(SUM(IF(s.status = 'completed', s.total, 0)), 0) AS total,
+            SUM(s.status = 'completed' AND s.payment_method = 'cash') AS cash_count,
+            COALESCE(SUM(IF(s.status = 'completed' AND s.payment_method = 'cash', s.total, 0)), 0) AS cash,
+            COALESCE(SUM(IF(s.status = 'completed' AND s.payment_method = 'gcash', s.total, 0)), 0) AS gcash,
+            COALESCE(SUM(IF(s.status = 'completed' AND s.payment_method = 'card', s.total, 0)), 0) AS card,
+            SUM(s.status = 'voided') AS voided_count,
+            COALESCE(SUM(IF(s.status = 'voided', s.total, 0)), 0) AS voided_total,
+            MIN(s.created_at) AS first_sale_at, MAX(s.created_at) AS last_sale_at
+       FROM tbl_sales s
+      WHERE s.cashier_id = ? AND s.created_at >= ? AND s.created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+    [cashierId, day, day],
+  );
+  const n = (v) => Number(v ?? 0);
+  return {
+    transactions: n(row.transactions), total: n(row.total),
+    cash_count: n(row.cash_count), cash: n(row.cash), gcash: n(row.gcash), card: n(row.card),
+    voided_count: n(row.voided_count), voided_total: n(row.voided_total),
+    first_sale_at: row.first_sale_at, last_sale_at: row.last_sale_at,
+  };
 }

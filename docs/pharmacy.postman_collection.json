@@ -885,6 +885,39 @@
           }
         },
         {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cash summary (close the day)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cash/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash",
+                "summary"
+              ]
+            }
+          }
+        },
+        {
           "name": "Sales summary",
           "request": {
             "method": "GET",

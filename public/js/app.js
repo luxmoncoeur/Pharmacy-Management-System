@@ -6,6 +6,7 @@ import { route, resolve, onRouteChange } from './router.js';
 import { initials, roleLabel } from './format.js';
 import { getThemePref, setThemePref } from './theme.js';
 import { toastError } from './ui/toast.js';
+import { mountBell, updateNotifications } from './notifications.js';
 
 // One short list, no groups. Each entry: route name, label, icon, who sees it, lazy view module.
 const everyone = () => true;
@@ -98,18 +99,21 @@ function openUserMenu(btn) {
   });
 }
 
-/** Sidebar counts: items that need someone's action. Refreshed after each navigation. */
+const POLL_MS = 60 * 1000;
+let lastBadges = {};
+
+/**
+ * Sidebar counts and the notification bell come from one call. Refreshed after each navigation or change,
+ * every minute while the tab is visible, and as soon as the tab comes back into view.
+ */
 export async function refreshBadges() {
-  const badges = {};
   try {
-    const [rx, alerts] = await Promise.all([
-      api.get('/prescriptions', { status: 'pending', limit: 1 }),
-      api.get('/inventory/alerts'),
-    ]);
-    badges.prescriptions = rx.meta.total || 0;
-    badges.stock = alerts.data.expired.length + alerts.data.near_expiry.length + alerts.data.low_stock.length || 0;
+    const res = await api.get('/notifications');
+    lastBadges = { prescriptions: res.meta.counts.prescriptions || 0, stock: res.meta.counts.stock || 0 };
+    updateNotifications(res.data);
   } catch { /* Badges are a convenience; the pages themselves show the real state. */ }
-  renderSidebar(badges);
+  // Re-rendering the sidebar would close the user menu if it is open; skip until next time.
+  if (!$('#user-menu')) renderSidebar(lastBadges);
 }
 
 function setNavOpen(open) {
@@ -136,7 +140,10 @@ async function start() {
   route('account', () => import('./views/account.js'));
 
   renderSidebar();
+  mountBell();
   refreshBadges();
+  setInterval(() => { if (!document.hidden) refreshBadges(); }, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshBadges(); });
 
   on(document, 'click', '#user-menu-btn', (_e, btn) => openUserMenu(btn));
   $('#menu-toggle').addEventListener('click', () => setNavOpen($('#app').dataset.navOpen !== 'true'));

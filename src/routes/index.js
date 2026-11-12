@@ -16,6 +16,7 @@ import prescriptions from '../controllers/prescriptionController.js';
 import sales from '../controllers/saleController.js';
 import transfers from '../controllers/transferController.js';
 import reports from '../controllers/reportController.js';
+import notifications from '../controllers/notificationController.js';
 
 // Three roles. A manager with no branch is the owner (see requireOwner); everyone else works at one branch.
 const MANAGER = ['manager'];
@@ -93,5 +94,11 @@ router.post('/transfers', manager, validate({ body: s.transferSchema }), transfe
 
 router.get('/dashboard', validate({ query: s.branchOnlyQuery }), reports.dashboard);
 router.get('/reports/:name', manager, validate({ query: s.reportQuery }), reports.run);
+
+// What needs this person's attention, built from existing data. Polled by the bell in the top bar.
+router.get('/notifications', validate({ query: s.branchOnlyQuery }), notifications.list);
+
+// End-of-day cash count: totals for one person's sales on one day (the count itself is printed, not stored).
+router.get('/cash/summary', validate({ query: s.cashSummaryQuery }), reports.cash);
 
 export default router;

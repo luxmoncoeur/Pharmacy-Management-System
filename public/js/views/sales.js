@@ -10,7 +10,8 @@ export async function render(container, { id }) {
   const isCashier = session.user.role === 'cashier';
   draw(container, html`
     ${pageHeader('Sales', isCashier ? 'Sales you made. Click one to reprint its receipt.' : 'Every sale. Click one to reprint its receipt or void it.',
-      canSell() ? html`<a class="btn btn-primary" href="#/pos">${icon('shopping-cart')}New sale</a>` : '')}
+      html`<button class="btn" type="button" id="close-day">${icon('wallet')}Close the day</button>
+        ${canSell() ? html`<a class="btn btn-primary" href="#/pos">${icon('shopping-cart')}New sale</a>` : ''}`)}
     <section class="panel" aria-label="Sales list">
       <div id="sales-summary" class="panel-header" aria-live="polite"><span class="small muted">Loading totals</span></div>
       <div id="sales-list"></div>
@@ -44,6 +45,11 @@ export async function render(container, { id }) {
       <span class="small muted">${res.meta.total} sale${res.meta.total === 1 ? '' : 's'}</span>
       <span><span class="small muted">Total (not counting voided) </span><strong class="num">${money(res.meta.revenue)}</strong></span>`),
     empty: { icon: 'receipt', title: 'No sales in these dates', message: 'Sales appear here as soon as they are completed.' },
+  });
+
+  $('#close-day', container).addEventListener('click', async () => {
+    const { closeDayDialog } = await import('./closeDay.js');
+    closeDayDialog();
   });
 
   if (id) openReceipt(id, { onVoid: () => list.reload() });

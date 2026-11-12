@@ -300,3 +300,44 @@ dialog.dialog.narrow { width: min(26rem, calc(100vw - 2rem)); }
   .btn:active:not(:disabled) { transform: none; }
   .skeleton { animation: none; }
 }
+
+/* Notification bell (top bar) and its list. */
+.notif-slot { position: relative; }
+.notif-btn { position: relative; }
+.notif-count {
+  position: absolute; top: 2px; right: 2px; min-width: 1.125rem; padding: 0 0.3rem; font-size: 0.625rem; font-weight: 700; line-height: 1.125rem;
+  text-align: center; color: #fff; background: var(--danger); border-radius: 999px; font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.notif-panel { right: 0; top: calc(100% + 6px); width: min(24rem, calc(100vw - 1.5rem)); padding: 0; transform-origin: top right; }
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+.notif-list { max-height: min(28rem, 70vh); overflow-y: auto; }
+.notif-item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: start; padding: var(--space-3) var(--space-4);
+  color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border);
+}
+.notif-item:last-child { border-bottom: 0; }
+.notif-item:focus-visible { outline: none; background: var(--surface-sunken); }
+@media (hover: hover) and (pointer: fine) { .notif-item:hover { background: var(--surface-sunken); } }
+.notif-item .icon { margin-top: 2px; }
+.notif-danger .icon { color: var(--danger-text); }
+.notif-warn .icon { color: var(--warning-text); }
+.notif-info .icon { color: var(--info-text); }
+.notif-item.is-new { background: var(--accent-soft); }
+.notif-text { display: grid; gap: 2px; min-width: 0; }
+.notif-title { font-size: 0.875rem; font-weight: 600; }
+.notif-body { font-size: 0.8125rem; color: var(--text-2); overflow-wrap: anywhere; }
+.notif-time { font-size: 0.75rem; color: var(--text-3); white-space: nowrap; }
+.notif-foot { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }
+.toast-info .icon { color: var(--info-text); }
+
+/* End-of-day cash count. */
+.cash-grid { display: grid; grid-template-columns: auto 6rem 1fr; gap: var(--space-2) var(--space-3); align-items: center; }
+.cash-grid .input { text-align: right; }
+.cash-grid .num { text-align: right; }
+.cash-figures { display: grid; gap: var(--space-2); }
+.cash-figures .row-between { font-variant-numeric: tabular-nums; }
+.cash-result { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-radius: var(--r-md); background: var(--surface-sunken); font-weight: 600; }
+.cash-result.short { background: var(--danger-soft); color: var(--danger-text); }
+.cash-result.over { background: var(--warning-soft); color: var(--warning-text); }
+.cash-result.balanced { background: var(--success-soft); color: var(--success-text); }
+.cash-slip { display: none; }
