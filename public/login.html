@@ -1,48 +1,153 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light dark">
-  <title>Sign in · Pharmacy Management System</title>
-  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
-  <script src="/js/theme-init.js"></script>
-  <link rel="stylesheet" href="/css/tokens.css">
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/layout.css">
-  <script type="module" src="/js/login.js"></script>
-</head>
-<body>
-  <main class="login">
-    <div class="login-card">
-      <div class="brand">
-        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-pill"></use></svg></span>
-        <div>
-          <div class="brand-name">Pharmacy Management System</div>
-          <div class="brand-branch">POS, inventory and prescriptions</div>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Sign in · Pharmacy Management System</title>
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+    <script src="/js/theme-init.js"></script>
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/login.css" />
+    <script type="module" src="/js/login.js"></script>
+  </head>
+  <body>
+    <main class="auth">
+      <!-- Brand side: decorative, hidden on small screens. -->
+      <section class="auth-hero" aria-hidden="true">
+        <div class="aurora">
+          <span class="aurora-blob a"></span>
+          <span class="aurora-blob b"></span>
+          <span class="aurora-blob c"></span>
         </div>
-      </div>
-      <form class="panel login-panel" id="login-form" novalidate>
-        <div>
-          <h1>Sign in</h1>
-          <p class="muted small">Use the username and password your manager gave you.</p>
+        <div class="hero-grid"></div>
+
+        <div class="hero-top reveal">
+          <span class="hero-mark"
+            ><svg class="icon"><use href="/icons/sprite.svg#i-pill"></use></svg
+          ></span>
+          <span class="hero-name">Pharmacy Management System</span>
         </div>
-        <div class="form-error" role="alert" hidden></div>
-        <div class="field">
-          <label for="username">Username</label>
-          <input class="input" id="username" name="username" autocomplete="username" required autofocus aria-describedby="username-error">
-          <span class="error" id="username-error"></span>
+
+        <div class="hero-copy">
+          <h2 class="hero-title">
+            <span class="word">Every</span> <span class="word">sale,</span>
+            <span class="word">lot</span> <span class="word">and</span>
+            <span class="word">prescription,</span>
+            <span class="word accent">in one place.</span>
+          </h2>
+          <ul class="hero-points">
+            <li class="reveal">
+              <svg class="icon"><use href="/icons/sprite.svg#i-shopping-cart"></use></svg>
+              Fast checkout with barcode scanning
+            </li>
+            <li class="reveal">
+              <svg class="icon"><use href="/icons/sprite.svg#i-package"></use></svg>
+              Batch and expiry tracking for every lot
+            </li>
+            <li class="reveal">
+              <svg class="icon"><use href="/icons/sprite.svg#i-stethoscope"></use></svg>
+              Prescriptions checked at the counter
+            </li>
+          </ul>
         </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-error">
-          <span class="error" id="password-error"></span>
+
+        <p class="hero-foot reveal">POS · Inventory · Prescriptions · Reports</p>
+      </section>
+
+      <!-- Form side -->
+      <section class="auth-side">
+        <button
+          class="btn btn-ghost btn-icon theme-toggle"
+          type="button"
+          id="theme-toggle"
+          aria-label="Switch to dark theme"
+        >
+          <svg class="icon icon-sun" aria-hidden="true"><use href="/icons/sprite.svg#i-sun"></use></svg>
+          <svg class="icon icon-moon" aria-hidden="true"><use href="/icons/sprite.svg#i-moon"></use></svg>
+        </button>
+
+        <div class="auth-card spotlight" id="auth-card">
+          <div class="brand auth-brand reveal">
+            <span class="brand-mark"
+              ><svg class="icon" aria-hidden="true">
+                <use href="/icons/sprite.svg#i-pill"></use></svg
+            ></span>
+            <div>
+              <div class="brand-name">Pharmacy Management System</div>
+              <div class="brand-branch">POS, inventory and prescriptions</div>
+            </div>
+          </div>
+
+          <div class="auth-head reveal">
+            <h1>Welcome back</h1>
+            <p class="muted small">
+              Use the username and password your manager gave you.
+            </p>
+          </div>
+
+          <form class="auth-form" id="login-form" novalidate>
+            <div class="form-error" role="alert" hidden></div>
+            <div class="field reveal">
+              <label for="username">Username</label>
+              <div class="input-icon">
+                <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-user"></use></svg>
+                <input
+                  class="input"
+                  id="username"
+                  name="username"
+                  autocomplete="username"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  required
+                  autofocus
+                  aria-describedby="username-error"
+                />
+              </div>
+              <span class="error" id="username-error"></span>
+            </div>
+            <div class="field reveal">
+              <label for="password">Password</label>
+              <div class="input-icon has-action">
+                <svg class="icon" aria-hidden="true"><use href="/icons/sprite.svg#i-lock"></use></svg>
+                <input
+                  class="input"
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  aria-describedby="password-error"
+                />
+                <button
+                  class="input-action"
+                  type="button"
+                  id="toggle-password"
+                  aria-label="Show password"
+                  aria-pressed="false"
+                >
+                  <svg class="icon icon-eye" aria-hidden="true"><use href="/icons/sprite.svg#i-eye"></use></svg>
+                  <svg class="icon icon-eye-off" aria-hidden="true"><use href="/icons/sprite.svg#i-eye-off"></use></svg>
+                </button>
+              </div>
+              <span class="error" id="password-error"></span>
+              <span class="caps-hint" id="caps-hint" hidden>Caps Lock is on</span>
+            </div>
+            <button class="btn btn-primary btn-lg btn-block auth-submit reveal" type="submit">
+              <span>Sign in</span>
+              <svg class="icon arrow" aria-hidden="true"><use href="/icons/sprite.svg#i-arrow-right"></use></svg>
+            </button>
+          </form>
         </div>
-        <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in</button>
-      </form>
-      <p class="login-footnote">Demo accounts are listed in the project README.</p>
-    </div>
-  </main>
-</body>
+
+        <p class="auth-foot reveal">Forgot your password? Ask the store owner to reset it.</p>
+      </section>
+    </main>
+  </body>
 </html>

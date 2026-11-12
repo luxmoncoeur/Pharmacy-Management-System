@@ -83,16 +83,6 @@
 }
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
 
-/* Login */
-.login {
-  min-height: 100dvh; display: grid; place-items: center; padding: var(--space-5);
-  background: var(--bg);
-}
-.login-card { width: min(24rem, 100%); display: grid; gap: var(--space-6); }
-.login-card .brand { padding: 0; }
-.login-panel { padding: var(--space-6); display: grid; gap: var(--space-4); }
-.login-footnote { font-size: 0.8125rem; color: var(--text-3); text-align: center; }
-
 /* Dashboard */
 .chart { position: relative; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }

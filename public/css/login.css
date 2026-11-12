@@ -1,0 +1,220 @@
+/*
+  Sign-in page. Seen once per shift, so it gets a little more motion than the app itself
+  (entrance stagger, slow background drift, pointer spotlight). Only transform and opacity animate,
+  and everything settles to static under prefers-reduced-motion. See docs/DESIGN.md.
+*/
+
+.auth {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--bg);
+}
+
+@media (min-width: 960px) {
+  .auth { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+}
+
+/* ---------- Brand side ---------- */
+.auth-hero {
+  display: none;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: var(--space-8) clamp(2rem, 4vw, 3.5rem);
+  color: #eaf5f0;
+  background: linear-gradient(160deg, #06281d 0%, #0a3a2a 45%, #052016 100%);
+}
+@media (min-width: 960px) {
+  .auth-hero { display: flex; flex-direction: column; justify-content: space-between; }
+}
+
+.aurora { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.aurora-blob {
+  position: absolute;
+  width: 34rem; height: 34rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.aurora-blob.a { top: -10rem; left: -8rem; background: #1fa774; animation: drift-a 18s ease-in-out infinite alternate; }
+.aurora-blob.b { bottom: -12rem; right: -10rem; background: #0f6b8a; opacity: 0.45; animation: drift-b 22s ease-in-out infinite alternate; }
+.aurora-blob.c { top: 35%; left: 40%; width: 22rem; height: 22rem; background: #7ad3a8; opacity: 0.25; animation: drift-c 26s ease-in-out infinite alternate; }
+
+@keyframes drift-a { to { transform: translate(6rem, 4rem) scale(1.1); } }
+@keyframes drift-b { to { transform: translate(-5rem, -6rem) scale(1.15); } }
+@keyframes drift-c { to { transform: translate(-6rem, 3rem) scale(0.9); } }
+
+/* Faint dot grid that fades out toward the edges. */
+.hero-grid {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(rgb(255 255 255 / 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 30%, transparent 100%);
+}
+
+.hero-top { display: flex; align-items: center; gap: var(--space-3); font-weight: 600; letter-spacing: -0.01em; }
+.hero-mark {
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: var(--r-md);
+  background: rgb(255 255 255 / 0.1); border: 1px solid rgb(255 255 255 / 0.16);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.hero-mark .icon { width: 1.125rem; height: 1.125rem; stroke-width: 2; }
+
+.hero-copy { max-width: 32rem; display: grid; gap: var(--space-8); }
+.hero-title {
+  margin: 0;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  line-height: 1.12;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.hero-title .word { display: inline-block; }
+.hero-title .accent {
+  background: linear-gradient(90deg, #8ff0c2, #5cc8e6);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+.hero-points { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.hero-points li {
+  display: flex; align-items: center; gap: var(--space-3);
+  font-size: 0.9375rem; color: rgb(234 245 240 / 0.82);
+}
+.hero-points .icon {
+  box-sizing: content-box; padding: 0.5rem; border-radius: var(--r-md);
+  background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.12);
+  color: #9be8c4;
+}
+
+.hero-foot { margin: 0; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgb(234 245 240 / 0.55); }
+
+/* ---------- Form side ---------- */
+.auth-side {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-5);
+  /* Soft accent glow behind the card. */
+  background:
+    radial-gradient(40rem 28rem at 50% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--bg);
+}
+
+.theme-toggle { position: absolute; top: var(--space-4); right: var(--space-4); }
+.theme-toggle .icon-moon { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+.auth-card {
+  position: relative;
+  width: min(25rem, 100%);
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r-lg) + 2px);
+  box-shadow: 0 1px 2px rgb(16 24 20 / 0.04), 0 12px 40px -12px rgb(16 24 20 / 0.16);
+  overflow: hidden;
+}
+:root[data-theme="dark"] .auth-card { box-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 48px -12px rgb(0 0 0 / 0.6); }
+
+/* Pointer spotlight: a radial glow that follows the cursor (position set from login.js). */
+.spotlight::before {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(22rem circle at var(--mx, 50%) var(--my, -20%), color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .spotlight:hover::before { opacity: 1; }
+}
+.auth-card > * { position: relative; }
+
+.auth-brand { padding: 0; }
+@media (min-width: 960px) { .auth-brand { display: none; } }
+
+.auth-head { display: grid; gap: var(--space-1); }
+.auth-head h1 { margin: 0; font-size: 1.5rem; font-weight: 650; letter-spacing: -0.025em; }
+.auth-head p { margin: 0; }
+
+.auth-form { display: grid; gap: var(--space-4); }
+
+.auth-form .input { min-height: 2.875rem; background: var(--surface-2); }
+.auth-form .input:focus { background: var(--surface); }
+.input-icon > .icon { transition: color 150ms ease; }
+.input-icon:focus-within > .icon { color: var(--accent-text); }
+
+/* Show/hide password button inside the field. */
+.input-icon.has-action > .input { padding-right: 2.75rem; }
+.input-action {
+  position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem;
+  padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-3); cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.input-action .icon-eye-off { display: none; }
+.input-action[aria-pressed="true"] .icon-eye { display: none; }
+.input-action[aria-pressed="true"] .icon-eye-off { display: block; }
+@media (hover: hover) and (pointer: fine) {
+  .input-action:hover { color: var(--text); background: var(--surface-sunken); }
+}
+
+.caps-hint { font-size: 0.75rem; font-weight: 500; color: var(--warning-text); }
+
+.auth-form .form-error {
+  padding: var(--space-3);
+  font-size: 0.8125rem; font-weight: 500;
+  color: var(--danger-text); background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: var(--r-md);
+}
+
+.auth-submit { margin-top: var(--space-2); font-weight: 600; }
+.auth-submit .arrow { transition: transform 200ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .auth-submit:hover:not(:disabled) .arrow { transform: translateX(3px); }
+}
+.auth-submit[aria-busy="true"] .arrow { display: none; }
+
+.auth-foot { margin: 0; font-size: 0.8125rem; color: var(--text-3); text-align: center; }
+
+/* ---------- Motion ---------- */
+
+/* Entrance: items rise in one after another. login.js sets --i (the order) on each .reveal. */
+.reveal, .hero-title .word {
+  animation: rise 600ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 80ms);
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.auth-card { animation: card-in 500ms var(--ease-out) both; }
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Failed sign-in: a short horizontal shake. */
+.auth-card.shake { animation: shake 380ms var(--ease-out); }
+@keyframes shake {
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none; }
+  .reveal, .hero-title .word, .auth-card { animation-name: fade; animation-duration: 200ms; animation-delay: 0ms; }
+  .auth-card.shake { animation: none; }
+  .auth-submit .arrow { transition: none; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+}
