@@ -72,3 +72,15 @@ export const MOVEMENT_LABELS = {
   receive: 'Delivery received', sale: 'Sold', adjust: 'Count corrected', transfer_out: 'Sent to another branch', transfer_in: 'Received from another branch',
   void_return: 'Returned (sale cancelled)', write_off: 'Removed (expired or damaged)',
 };
+
+/** "just now", "5 min ago", "3 h ago", or the date: for notification times. Midnight-dated items read as "today". */
+export function ago(s) {
+  const d = parse(s);
+  if (!d) return '';
+  if (String(s).endsWith('00:00:00') && d.toDateString() === new Date().toDateString()) return 'today';
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 24 * 60) return `${Math.round(mins / 60)} h ago`;
+  return shortDate(s);
+}

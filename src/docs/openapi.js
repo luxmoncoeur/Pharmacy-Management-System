@@ -65,9 +65,12 @@ const ENDPOINTS = [
   ['get', '/batches/{id}', 'Stock', 'Get a lot', 'any'],
   ['post', '/batches', 'Stock', 'Receive a delivery', 'stock', {
     body: { medicine_id: 1, quantity: 100, expiry_date: '2028-12-31', batch_no: 'DEMO-001', supplier: 'Sample Pharma Distributors', cost_price: 3.5 },
-    notes: 'supplier and cost_price are optional. The owner must also send branch_id.',
+    notes: 'supplier and cost_price are optional. The owner must also send branch_id. If the lot number is already on file at this branch with the same expiry, the units are added to it (200). With a different expiry the delivery is refused (409).',
   }],
-  ['patch', '/batches/{id}', 'Stock', 'Fix lot details', 'manager', { body: { batch_no: 'DEMO-001', expiry_date: '2028-12-31', cost_price: 3.5, supplier: 'Sample Pharma Distributors' } }],
+  ['patch', '/batches/{id}', 'Stock', 'Fix lot details', 'manager', {
+    body: { batch_no: 'DEMO-001', expiry_date: '2028-12-31', cost_price: 3.5, supplier: 'Sample Pharma Distributors' },
+    notes: 'A new expiry date must be in the future. An expired lot cannot be re-dated, and once units from a lot are sold its expiry can only move earlier (409).',
+  }],
   ['post', '/batches/{id}/adjust', 'Stock', 'Remove stock or correct a count', 'stock', {
     body: { type: 'write_off', qty_change: -5, reason: 'Expired' },
     notes: 'write_off removes expired or damaged stock (negative qty_change). adjust is a count correction (signed) and needs a manager.',
@@ -84,7 +87,7 @@ const ENDPOINTS = [
   ['get', '/prescriptions/{id}', 'Prescriptions', 'Get a prescription (printable record)', 'any'],
   ['post', '/prescriptions', 'Prescriptions', 'Record a prescription', 'any', {
     body: { customer_id: 3, doctor_name: 'Dr. Demo', doctor_license_no: 'MD-DEMO-1', date_issued: '2026-11-01', verify: false, items: [{ medicine_id: 6, quantity: 21, instructions: '1 capsule every 8 hours' }] },
-    notes: 'With verify: true a pharmacist saves and verifies in one step.',
+    notes: 'With verify: true a pharmacist saves and verifies in one step. Prescriptions are valid for 180 days from date_issued: older ones can be recorded and rejected, but not verified or given out (409).',
   }],
   ['put', '/prescriptions/{id}', 'Prescriptions', 'Edit a pending prescription', 'any', { body: { customer_id: 3, doctor_name: 'Dr. Demo', doctor_license_no: 'MD-DEMO-1', date_issued: '2026-11-01', items: [{ medicine_id: 6, quantity: 21 }] } }],
   ['delete', '/prescriptions/{id}', 'Prescriptions', 'Delete a pending prescription', 'any'],
@@ -103,6 +106,14 @@ const ENDPOINTS = [
   ['get', '/reports/{name}', 'Home and reports', 'Run a report', 'manager', {
     query: [q('from', 'YYYY-MM-DD'), q('to', 'YYYY-MM-DD'), branch, q('format', 'json or csv')],
     notes: 'name: daily-sales (Sales summary), sales-by-medicine (Best-selling medicines), or stock-status (Stock and expiry).',
+  }],
+  ['get', '/notifications', 'Home and reports', 'Notifications for the signed-in user', 'any', {
+    query: [branch],
+    notes: 'Built from existing data for this person\'s role: prescriptions to check, prescriptions they recorded that were checked, voided sales, stock problems and PRC licenses. meta.counts holds the sidebar counts. Read/unread is tracked by the browser.',
+  }],
+  ['get', '/cash/summary', 'Home and reports', 'End-of-day cash summary', 'any', {
+    query: [q('cashier', 'Staff member ID (defaults to you; required for the owner)', { type: 'integer' }), q('date', 'YYYY-MM-DD (defaults to today; past days are for managers)')],
+    notes: 'Totals by payment method for one person\'s sales on one day, used to count the cash drawer. Staff see their own day; a branch manager sees anyone at the branch; the owner sees anyone. The count itself is printed, not stored.',
   }],
 ];
 

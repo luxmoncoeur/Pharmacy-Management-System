@@ -54,6 +54,8 @@ The prescription must already be checked by a pharmacist.
 3. If you are giving out only part of it (for example, because of low stock), lower the quantity. The rest stays on the prescription for next time.
 4. Charge and print the receipt as usual.
 
+A prescription is valid for **180 days** from the date written. After that, the rest of it can no longer be given out; ask the patient for a new prescription.
+
 ### Record a prescription
 
 1. Click **Prescriptions**, then **Record a prescription**. You can also use the button on **Home**.
@@ -80,7 +82,29 @@ The record shows the patient, the doctor and their PRC number, the medicines and
 
 ### Look up a medicine
 
-Click **Medicines & Stock** and type the name, brand, or barcode. You will see the price, how many are in stock, and when the next lot expires.
+Click **Medicines & Stock** and type the name, brand, or barcode. You will see the price, how many are in stock, and when the next lot expires. Prices are the same at every branch.
+
+### Notifications
+
+The **bell** at the top right shows what needs you, with a red count for anything new. It checks by itself every minute.
+
+- **Cashiers** are told when a prescription they recorded is checked (ready to give out) or rejected, with the reason.
+- **Pharmacists** are told about new prescriptions to check, and about expired, out-of-stock, low and expiring stock.
+- **Managers** also see voided sales and PRC licenses that are about to expire.
+
+New prescriptions (and prescriptions you recorded that were just checked) also pop up at the bottom of the screen. To get these alerts even when the browser tab is in the background, open the bell and click **Turn on desktop alerts**.
+
+### Close the day
+
+At the end of your shift, count the cash drawer:
+
+1. Click **Sales**, then **Close the day**.
+2. Enter the **Opening cash** (the change fund you started with).
+3. Count each kind of bill and enter how many, then the coins total. The system adds them up.
+4. It compares what you counted with what should be there (opening cash plus today's cash sales) and shows **Balanced**, **Short**, or **Over**. Add a note if something explains a difference.
+5. Click **Print closing slip**, sign it, and hand it to the manager with the cash.
+
+The count is not saved in the system, so the signed slip is the record. Managers can count for anyone at their branch, and for past days.
 
 ---
 
@@ -92,12 +116,14 @@ Click **Medicines & Stock** and type the name, brand, or barcode. You will see t
 2. Open the prescription and compare it with the paper:
    - the doctor's name, signature, and PRC license number are there
    - the patient's name matches
-   - the date is recent, and the medicines and amounts match
+   - the date is recent (within 180 days), and the medicines and amounts match
 3. Click **Verify** if everything matches. Otherwise, click **Reject** and write the reason. The counter staff will see it.
 
 If you have the paper in your hand while recording a prescription, click **Save and verify** to do both at once.
 
 Your PRC license must be saved on your account and must not be expired. If it has expired, ask the owner to update it.
+
+Prescriptions written more than **180 days** ago cannot be verified. The system shows them as **Expired**; reject them and ask the patient for a new one.
 
 ### Receive a delivery
 
@@ -106,6 +132,8 @@ Your PRC license must be saved on your account and must not be expired. If it ha
 3. Enter **How many?**, the **Expiry date**, and the **Lot number**, all as printed on the box.
 4. Open **More details (optional)** if you want to record the supplier and the cost. Type the supplier's name; names you used before are suggested.
 5. Click **Add to stock**.
+
+If the same lot was delivered before, the new units are added to it. If the lot number is already on file with a different expiry date, the system stops you. Check the box again; one of the two was probably typed wrong.
 
 ### Remove expired or damaged stock
 
@@ -131,6 +159,12 @@ On **Medicines & Stock**, click **Running low** to see a **Suggested order** for
 3. Tick **Needs a prescription (Rx)** for prescription-only medicines.
 
 For **Category**, pick one of the suggestions or type a new one.
+
+There is one price for each medicine across all branches, so a change made by any manager applies everywhere.
+
+### Fix a lot's details
+
+Open the medicine and click the pencil on a lot to fix a typo in its lot number, expiry date, or cost. Expiry dates are protected: an expired lot cannot be re-dated (remove it as expired instead), and once units from a lot have been sold, its expiry date can only be moved earlier.
 
 ### Correct a shelf count
 
@@ -171,5 +205,7 @@ To add a staff account (owner only): open **Staff accounts**, click **Add staff 
 | "Needs a prescription" at Sell | The medicine is marked Rx. Use **Give out a checked prescription**. If the prescription is not there yet, record it and ask a pharmacist to check it. |
 | "Only N in stock" | There is not enough stock that has not expired. Sell what is available, or ask a manager to send stock from another branch. |
 | The Senior Citizen or PWD discount is missing | Save the customer's ID on the **Customers** page first. |
+| "This prescription was written N days ago" | Prescriptions are valid for 180 days. Ask the patient for a new prescription. |
+| "Lot … is already on file with expiry …" | The lot number was received before with a different expiry date. Check the box for the right lot number and expiry. |
 | "Your PRC license on file has expired" | Ask the owner to update your license in **Settings**, **Staff accounts**. |
 | You are signed out | Sign in again. This also happens after the sample data is reset. |

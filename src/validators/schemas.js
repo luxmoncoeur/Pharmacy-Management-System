@@ -177,5 +177,10 @@ export const reportQuery = z.object({
   format: z.enum(['json', 'csv']).default('json'),
 });
 
+export const cashSummaryQuery = z.object({
+  cashier: id('Staff member').optional(),
+  date: optionalDate('Date').refine((d) => !d || d <= phToday(), 'The date cannot be in the future.'),
+});
+
 export const branchOnlyQuery = z.object({ branch: id('Branch').optional() });
 export const statusOnlyQuery = z.object({ status: activeFilter, q: z.string().trim().max(100).optional() });

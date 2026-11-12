@@ -4,6 +4,7 @@ import { ok, created, notFound, conflict, badRequest, forbidden } from '../utils
 import { paginate, pageMeta } from '../utils/pagination.js';
 import { phToday } from '../validators/common.js';
 import { branchScope, assertBranchAccess, targetBranch } from '../middleware/auth.js';
+import { assertRxValid } from '../utils/rxValidity.js';
 
 async function assertReferences({ customer_id, items }) {
   const [customer] = await query('SELECT is_active FROM tbl_customers WHERE customer_id = ?', [customer_id]);
@@ -48,7 +49,10 @@ const prescriptionController = {
     const body = req.valid.body;
     const branchId = targetBranch(req, body.branch_id);
     if (!branchId) throw badRequest('Choose the branch for this prescription.', { branch_id: 'Branch is required.' });
-    if (body.verify) assertCanReview(req);
+    if (body.verify) {
+      assertCanReview(req);
+      assertRxValid(body.date_issued);
+    }
     await assertReferences(body);
 
     const id = await withTransaction(async (conn) => {
@@ -99,6 +103,7 @@ const prescriptionController = {
     assertCanReview(req);
     const rx = await loadEditable(req, id);
     if (rx.status !== 'pending') throw conflict(`This prescription is already ${rx.status.replace('_', ' ')}.`);
+    assertRxValid(rx.date_issued);
     await withTransaction(async (conn) => {
       await markReviewed(conn, req, id, 'verified');
     });

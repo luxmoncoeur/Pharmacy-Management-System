@@ -32,7 +32,7 @@ const Inventory = {
 
   getBatch: async (id) => (await query(`${BATCH_SELECT} WHERE b.batch_id = ?`, [id]))[0],
 
-  updateBatch: (id, b) => query(
+  updateBatch: (id, b, conn = null) => (conn ? conn.query.bind(conn) : query)(
     'UPDATE tbl_batches SET batch_no = ?, expiry_date = ?, cost_price = ?, supplier = ? WHERE batch_id = ?',
     [b.batch_no, b.expiry_date, b.cost_price, b.supplier ?? null, id],
   ),

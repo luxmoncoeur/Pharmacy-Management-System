@@ -1,12 +1,15 @@
 import { query } from '../config/db.js';
 import { where, like, orderBy, SELLABLE } from '../utils/sql.js';
+import { RX_VALID_DAYS } from '../config/pricing.js';
 
 const SELECT = `
   SELECT p.*, CONCAT(c.firstname, ' ', c.lastname) AS customer_name, c.phone AS customer_phone,
          c.discount_id_type AS customer_discount_type,
          rv.full_name AS pharmacist_name, rv.license_no AS pharmacist_license_no,
          br.name AS branch_name, br.address AS branch_address, br.phone AS branch_phone, u.full_name AS created_by_name,
-         (SELECT COUNT(*) FROM tbl_prescribed_items i WHERE i.prescription_id = p.prescription_id) AS item_count
+         (SELECT COUNT(*) FROM tbl_prescribed_items i WHERE i.prescription_id = p.prescription_id) AS item_count,
+         DATEDIFF(CURDATE(), p.date_issued) AS days_since_issued,
+         DATEDIFF(CURDATE(), p.date_issued) > ${RX_VALID_DAYS} AS is_expired
     FROM tbl_prescription p
     JOIN tbl_customers c ON c.customer_id = p.customer_id
     JOIN tbl_branches br ON br.branch_id = p.branch_id
@@ -19,7 +22,8 @@ const Prescription = {
       .if(branchId, 'p.branch_id = ?', branchId)
       .if(customer, 'p.customer_id = ?', customer)
       .if(q, "(CONCAT(c.firstname, ' ', c.lastname) LIKE ? OR p.doctor_name LIKE ? OR p.prescription_id = ?)", q && like(q), q && like(q), q && Number(q.replace(/\D/g, '')) || 0);
-    if (status === 'dispensable') w.add("p.status IN ('verified', 'partially_dispensed')");
+    // Ready to give out: checked by a pharmacist and still within its validity period.
+    if (status === 'dispensable') w.add(`p.status IN ('verified', 'partially_dispensed') AND p.date_issued >= DATE_SUB(CURDATE(), INTERVAL ${RX_VALID_DAYS} DAY)`);
     else w.if(status, 'p.status = ?', status);
     const rows = await query(
       `${SELECT} ${w.sql} ${orderBy({ created_at: 'p.created_at', date_issued: 'p.date_issued', status: 'p.status' }, sort, sort ? dir : 'desc', 'p.created_at')} LIMIT ? OFFSET ?`,

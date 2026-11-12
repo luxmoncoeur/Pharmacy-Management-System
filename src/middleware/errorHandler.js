@@ -15,7 +15,6 @@ export function notFoundHandler(req, res) {
   res.status(404).json({ success: false, message: `No API route for ${req.method} ${req.originalUrl}.` });
 }
 
-// eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, _next) {
   if (err instanceof HttpError) {
     return res.status(err.status).json({ success: false, message: err.message, ...(err.errors && { errors: err.errors }) });

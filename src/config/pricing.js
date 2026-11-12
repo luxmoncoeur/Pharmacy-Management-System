@@ -4,3 +4,5 @@ export const VAT_RATE = 0.12;
 export const SENIOR_PWD_DISCOUNT = 0.2;
 export const NEAR_EXPIRY_DAYS = 90;
 export const PH_TIMEZONE = '+08:00';
+// A prescription can be verified and given out for this many days after the date it was written.
+export const RX_VALID_DAYS = 180;

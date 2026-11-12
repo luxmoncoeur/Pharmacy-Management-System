@@ -237,7 +237,10 @@ a.alert-item:hover { background: var(--surface-2); }
   .app { display: block; }
   dialog.dialog[open] { position: static; display: block; box-shadow: none; border: 0; width: auto; max-height: none; transform: none; }
   dialog.dialog::backdrop { display: none; }
-  body:has(dialog.receipt-dialog[open]) .main, body:has(dialog.rx-print-dialog[open]) .main { display: none; }
+  body:has(dialog.receipt-dialog[open]) .main, body:has(dialog.rx-print-dialog[open]) .main, body:has(dialog.cash-slip-dialog[open]) .main { display: none; }
+  /* The cash count prints only its slip, not the counting form. */
+  dialog.cash-slip-dialog .dialog-header, dialog.cash-slip-dialog .cash-form { display: none !important; }
+  dialog.cash-slip-dialog .cash-slip { display: block; }
   dialog.rx-print-dialog .dialog-header { display: none; }
   .rx-record { color: #000; }
   /* Reports print as a plain table with a heading. */

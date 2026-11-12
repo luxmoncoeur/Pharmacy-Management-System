@@ -118,7 +118,7 @@ async function openMedicine(medicineId, list) {
                 <span class="secondary-line small subtle">Lot <span class="mono">${b.batch_no}</span>${owner ? ` · ${b.branch_name}` : ''}${b.supplier_name ? ` · from ${b.supplier_name}` : ''}</span></span>
               <span class="row">${expiryPill(b.expiry_date, b.days_to_expiry)}
                 ${handlesStock() ? html`<button class="btn btn-sm ${b.expiry_status === 'expired' ? 'btn-danger' : ''}" type="button" data-remove="${b.batch_id}">${b.expiry_status === 'expired' ? 'Remove expired' : 'Remove'}</button>` : ''}
-                ${isManager() ? html`<button class="btn btn-ghost btn-sm" type="button" data-fix="${b.batch_id}" aria-label="Fix lot details">${icon('pencil', 'icon-sm')}</button>` : ''}</span>
+                ${isManager() && b.expiry_status !== 'expired' ? html`<button class="btn btn-ghost btn-sm" type="button" data-fix="${b.batch_id}" aria-label="Fix lot details">${icon('pencil', 'icon-sm')}</button>` : ''}</span>
             </div>`)}</div>`
             : html`<p class="small subtle">Nothing on the shelf. Receive a delivery to start selling this medicine.</p>`}
         </section>
@@ -329,10 +329,10 @@ async function editLot(lot, onDone) {
   const suppliers = (await api.get('/suppliers')).data;
   formDialog({
     title: 'Fix lot details',
-    description: 'Correct a typo in the lot number, expiry date or cost. To change the quantity, use Remove instead.',
+    description: 'Correct a typo in the lot number, expiry date or cost. To change the quantity, use Remove instead. Once units from a lot are sold, its expiry date can only be moved earlier.',
     defs: [
       { name: 'batch_no', label: 'Lot number', required: true, attrs: { maxlength: 40 } },
-      { name: 'expiry_date', label: 'Expiry date', type: 'date', required: true },
+      { name: 'expiry_date', label: 'Expiry date', type: 'date', required: true, attrs: { min: daysFromToday(1) } },
       { name: 'cost_price', label: 'Cost per unit', type: 'number', required: true, attrs: { min: 0, step: 0.01 } },
       { name: 'supplier', label: 'Supplier', attrs: { maxlength: 120 }, suggestions: suppliers.map((s) => s.name) },
     ],

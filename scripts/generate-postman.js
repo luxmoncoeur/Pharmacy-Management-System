@@ -51,6 +51,8 @@ const groups = {
   ],
   Reports: [
     ['Dashboard', 'GET', 'dashboard'],
+    ['Notifications', 'GET', 'notifications'],
+    ['Cash summary (close the day)', 'GET', 'cash/summary'],
     ['Sales summary', 'GET', 'reports/daily-sales?from=2026-10-01&to=2026-11-30'],
     ['Best-selling medicines', 'GET', 'reports/sales-by-medicine?from=2026-10-01&to=2026-11-30'],
     ['Stock and expiry CSV', 'GET', 'reports/stock-status?format=csv'],

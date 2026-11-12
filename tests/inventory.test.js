@@ -117,3 +117,55 @@ test('owner alerts count shortages per branch, not combined stock', async () => 
   const dash = await admin.get('/api/dashboard');
   assert.equal(Number(dash.body.data.stock.low_stock), all.body.data.low_stock.length);
 });
+
+const lotBody = (b, changes) => ({ batch_no: b.batch_no, expiry_date: b.expiry_date, cost_price: b.cost_price, supplier: b.supplier, ...changes });
+
+test('an expired lot cannot be re-dated to make it sellable again', async () => {
+  const manager = await loginAs('manager.main');
+  const [[lot]] = await pool.query('SELECT * FROM tbl_batches WHERE branch_id = 1 AND expiry_date <= CURDATE() AND qty_on_hand > 0 LIMIT 1');
+  const res = await manager.patch(`/api/batches/${lot.batch_id}`).send(lotBody(lot, { expiry_date: future(365) }));
+  assert.equal(res.status, 409);
+  assert.ok(res.body.errors.expiry_date);
+  const [[after]] = await pool.query('SELECT expiry_date FROM tbl_batches WHERE batch_id = ?', [lot.batch_id]);
+  assert.equal(after.expiry_date, lot.expiry_date, 'the expiry date is unchanged');
+  const costOnly = await manager.patch(`/api/batches/${lot.batch_id}`).send(lotBody(lot, { cost_price: 1.5 }));
+  assert.equal(costOnly.status, 200, 'other details of an expired lot can still be corrected');
+});
+
+test('a lot that has sold units can only have its expiry moved earlier', async () => {
+  const manager = await loginAs('manager.main');
+  const [[lot]] = await pool.query(
+    `SELECT b.* FROM tbl_batches b WHERE b.branch_id = 1 AND b.expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        AND EXISTS (SELECT 1 FROM tbl_stock_movements m WHERE m.batch_id = b.batch_id AND m.type = 'sale') LIMIT 1`,
+  );
+  const later = new Date(Date.parse(lot.expiry_date) + 365 * 86400000).toISOString().slice(0, 10);
+  assert.equal((await manager.patch(`/api/batches/${lot.batch_id}`).send(lotBody(lot, { expiry_date: later }))).status, 409);
+  assert.equal((await manager.patch(`/api/batches/${lot.batch_id}`).send(lotBody(lot, { expiry_date: '2020-01-01' }))).status, 400, 'cannot set a past date');
+  const earlier = new Date(Date.parse(lot.expiry_date) - 86400000).toISOString().slice(0, 10);
+  assert.equal((await manager.patch(`/api/batches/${lot.batch_id}`).send(lotBody(lot, { expiry_date: earlier }))).status, 200);
+});
+
+test('a typo in a new, unsold lot\'s expiry can be fixed', async () => {
+  const manager = await loginAs('manager.main');
+  const rcv = await manager.post('/api/batches').send({ medicine_id: 11, batch_no: 'TEST-TYPO', expiry_date: future(200), cost_price: 5, quantity: 10 });
+  assert.equal(rcv.status, 201);
+  const res = await manager.patch(`/api/batches/${rcv.body.data.batch_id}`).send(lotBody(rcv.body.data, { expiry_date: future(500) }));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.data.expiry_date, future(500));
+});
+
+test('a second delivery of the same lot adds to it; a different expiry is refused', async () => {
+  const pharmacist = await loginAs('pharmacist.main');
+  const body = { medicine_id: 11, batch_no: 'TEST-AGAIN', expiry_date: future(300), cost_price: 10, quantity: 20 };
+  const first = await pharmacist.post('/api/batches').send(body);
+  assert.equal(first.status, 201);
+  const again = await pharmacist.post('/api/batches').send({ ...body, quantity: 15 });
+  assert.equal(again.status, 200);
+  assert.equal(again.body.data.batch_id, first.body.data.batch_id, 'units go into the same lot');
+  assert.equal(again.body.data.qty_on_hand, 35);
+  assert.equal(await ledgerMismatches(), 0);
+
+  const typo = await pharmacist.post('/api/batches').send({ ...body, expiry_date: future(301) });
+  assert.equal(typo.status, 409);
+  assert.ok(typo.body.errors.batch_no);
+});
